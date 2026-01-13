@@ -1,0 +1,50 @@
+!= partial("includes/third-party/newest-comments/common.pug", {}, { cache: true })
+
+script.
+  window.addEventListener('load', () => {
+    const keyName = 'twikoo-newest-comments'
+    const { changeContent, generateHtml, run } = window.newestComments
+
+    const getComment = ele => {
+      const runTwikoo = () => {
+        twikoo.getRecentComments({
+          pageSize: !{newestCommentsLimit},
+          includeReply: true
+        }).then(res => {
+          const twikooArray = res.map(e => {
+            return {
+              'content': changeContent(e.comment),
+              'avatar': e.avatar,
+              'nick': e.nick,
+              'url': e.url + '#' + e.id,
+              'date': new Date(e.created).toISOString()
+            }
+          })
+
+          btf.saveToLocal.set(keyName, JSON.stringify(twikooArray), !{theme.aside.card_newest_comments.storage}/(60*24))
+          generateHtml(twikooArray, ele)
+        }).catch(err => {
+          console.error(err)
+          ele.textContent= "!{_p('aside.card_newest_comments.error')}"
+        })
+      }
+
+      if (typeof twikoo === 'object') {
+        runTwikoo()
+      } else {
+        const commentsApi = !{JSON.stringify(theme.twikoo.api_url || '')} || (window.location.protocol === 'https:' 
+          ? 'https://localhost:5000/api' 
+          : 'http://localhost:5000/api')
+        window.COMMENTS_API = commentsApi
+        btf.getScript('/js/comments.js').then(runTwikoo).catch(err => {
+          console.error('Failed to load comments script:', err)
+          ele.textContent= "!{_p('aside.card_newest_comments.error')}"
+        })
+      }
+    }
+
+    run(keyName, getComment)
+  })
+
+
+
