@@ -7,17 +7,52 @@
     <meta name="robots" content="noindex, nofollow">
     <title>博客文章编辑器</title>
     <link rel="stylesheet" href="/static/css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
     <script>
-        // 在页面加载前阻止主题脚本
+        // 在页面加载前阻止主题脚本并设置错误处理
         window.GLOBAL_CONFIG = window.GLOBAL_CONFIG || {};
         window.GLOBAL_CONFIG_SITE = window.GLOBAL_CONFIG_SITE || {};
         window.GLOBAL_CONFIG_SITE.pageType = 'admin';
+
+        // 提前设置全局错误处理，捕获主题脚本错误
+        window.addEventListener('error', function (e) {
+            // 如果是 page-events.js 或其他主题脚本的错误，忽略它
+            if (e.filename && (e.filename.includes('page-events') ||
+                e.filename.includes('main.js') ||
+                e.filename.includes('utils.js') ||
+                e.filename.includes('butterfly'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return true;
+            }
+            // 如果错误信息包含 length 相关的主题脚本错误，也忽略
+            if (e.message && (
+                e.message.includes('Cannot read properties of undefined') ||
+                (e.message.includes('length') && e.filename && e.filename.includes('.js'))
+            )) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return true;
+            }
+        }, true);
+
+        // 捕获未处理的 Promise 错误
+        window.addEventListener('unhandledrejection', function (e) {
+            const reason = e.reason ? e.reason.toString() : '';
+            if (reason.includes('page-events') ||
+                reason.includes('Cannot read properties') ||
+                (reason.includes('length') && reason.includes('undefined'))) {
+                e.preventDefault();
+            }
+        });
     </script>
 </head>
 
 <body>
     <div class="container">
-        <h1>📝 博客文章编辑器</h1>
+        <h1>博客文章编辑器</h1>
 
         <form id="postForm">
             <div class="form-group">
@@ -61,17 +96,31 @@
                 <label for="content">文章内容 (Markdown) *</label>
                 <textarea id="content" name="content" required placeholder="使用 Markdown 格式编写文章内容..."></textarea>
                 <div class="help-text">
-                    支持 Markdown 语法。图片引用格式: ![描述](/img/图片名.jpg)
+                    支持 Markdown 语法。图片引用格式: ![描述](/img/图片名.jpg)<br>
+                    外部链接格式: [链接文本](https://example.com) - 点击预览按钮可查看渲染效果
                 </div>
             </div>
 
             <div class="actions">
-                <button type="submit" class="btn" id="submitBtn">🚀 提交文章</button>
-                <button type="button" class="btn btn-secondary" id="previewBtn">👁️ 预览</button>
+                <button type="submit" class="btn" id="submitBtn">提交文章</button>
+                <button type="button" class="btn btn-secondary" id="previewBtn">预览</button>
             </div>
 
             <div class="status" id="status"></div>
         </form>
+    </div>
+
+    <!-- 预览模态框 -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>文章预览</h2>
+                <span class="modal-close" id="closePreview">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent" class="markdown-preview"></div>
+            </div>
+        </div>
     </div>
 
     <script src="/static/js/admin.js"></script>

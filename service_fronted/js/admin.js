@@ -3,20 +3,56 @@ window.addEventListener('error', function (e) {
     // 如果是 page-events.js 或其他主题脚本的错误，忽略它
     if (e.filename && (e.filename.includes('page-events') ||
         e.filename.includes('main.js') ||
-        e.filename.includes('utils.js'))) {
+        e.filename.includes('utils.js') ||
+        e.filename.includes('butterfly'))) {
         e.preventDefault();
-        console.warn('已忽略主题脚本错误:', e.message);
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return true;
+    }
+    // 如果错误信息包含 length 相关的主题脚本错误，也忽略
+    if (e.message && (
+        e.message.includes('Cannot read properties of undefined') ||
+        (e.message.includes('length') && e.filename && e.filename.includes('.js'))
+    )) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         return true;
     }
 }, true);
 
 // 捕获未处理的 Promise 错误
 window.addEventListener('unhandledrejection', function (e) {
-    if (e.reason && e.reason.toString().includes('page-events')) {
+    const reason = e.reason ? e.reason.toString() : '';
+    if (reason.includes('page-events') || 
+        reason.includes('Cannot read properties') ||
+        (reason.includes('length') && reason.includes('undefined'))) {
         e.preventDefault();
-        console.warn('已忽略主题脚本 Promise 错误');
     }
 });
+
+// 使用 try-catch 包装可能出错的主题脚本事件处理
+// 在 DOMContentLoaded 之前设置，确保能捕获所有错误
+(function() {
+    const originalDispatchEvent = EventTarget.prototype.dispatchEvent;
+    EventTarget.prototype.dispatchEvent = function(event) {
+        try {
+            return originalDispatchEvent.call(this, event);
+        } catch (error) {
+            // 如果是主题脚本相关的错误，静默忽略
+            if (error && error.message && (
+                error.message.includes('Cannot read properties') ||
+                error.message.includes('length') ||
+                (error.stack && error.stack.includes('page-events'))
+            )) {
+                return false; // 返回 false 表示事件被阻止
+            }
+            // 其他错误正常抛出
+            throw error;
+        }
+    };
+})();
 
 // 自动检测 API 基础路径
 const API_BASE = window.location.origin.includes('5000')
@@ -234,11 +270,63 @@ document.getElementById('postForm').addEventListener('submit', async (e) => {
     }
 });
 
-// 预览功能（简单实现）
-document.getElementById('previewBtn').addEventListener('click', () => {
+// 预览功能
+const previewBtn = document.getElementById('previewBtn');
+const previewModal = document.getElementById('previewModal');
+const closePreview = document.getElementById('closePreview');
+const previewContent = document.getElementById('previewContent');
+
+// 配置 marked.js
+if (typeof marked !== 'undefined') {
+    marked.setOptions({
+        breaks: true, // 支持 GitHub 风格的换行
+        gfm: true, // 启用 GitHub 风格的 Markdown
+        sanitize: false, // 允许 HTML（用于预览）
+    });
+}
+
+previewBtn.addEventListener('click', () => {
     const content = document.getElementById('content').value;
-    if (content) {
-        // 这里可以集成 markdown 预览库，暂时用 alert 提示
-        alert('预览功能：可以在新窗口中打开预览页面，或集成 markdown 预览库');
+    const title = document.getElementById('title').value || '未命名文章';
+    
+    if (content.trim()) {
+        // 渲染 Markdown 为 HTML
+        let html = '';
+        if (typeof marked !== 'undefined') {
+            html = marked.parse(content);
+        } else {
+            // 如果 marked.js 未加载，显示提示
+            html = '<p style="color: #d32f2f;">⚠️ Markdown 渲染库未加载，请刷新页面重试。</p><pre>' + 
+                   content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+                   '</pre>';
+        }
+        
+        // 处理外部链接，使其在新标签页打开
+        html = html.replace(/<a href="(https?:\/\/[^"]+)"/g, '<a href="$1" target="_blank" rel="noopener noreferrer"');
+        
+        // 显示预览
+        previewContent.innerHTML = `<h1>${title}</h1>\n${html}`;
+        previewModal.classList.add('show');
+    } else {
+        alert('请先输入文章内容');
+    }
+});
+
+// 关闭预览
+closePreview.addEventListener('click', () => {
+    previewModal.classList.remove('show');
+});
+
+// 点击模态框外部关闭
+previewModal.addEventListener('click', (e) => {
+    if (e.target === previewModal) {
+        previewModal.classList.remove('show');
+    }
+});
+
+// ESC 键关闭预览
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && previewModal.classList.contains('show')) {
+        previewModal.classList.remove('show');
     }
 });
