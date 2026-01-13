@@ -49,9 +49,20 @@ script.
       else {
         // 使用本地评论系统替代Twikoo
         // 优先使用CDN API地址，如果未配置则使用本地API
-        const commentsApi = !{JSON.stringify(theme.twikoo.api_url || '')} || (window.location.protocol === 'https:' 
-          ? 'https://localhost:5000/api' 
-          : 'http://localhost:5000/api')
+        let commentsApi = !{JSON.stringify(theme.twikoo.api_url || '')} || ''
+        // 如果是相对路径，根据当前环境决定使用绝对路径还是相对路径
+        if (commentsApi && commentsApi.startsWith('/')) {
+          // 开发环境（4000端口或127.0.0.1）使用绝对路径指向5000端口
+          if (window.location.port === '4000' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+            commentsApi = window.location.protocol + '//' + window.location.hostname + ':5000/api'
+          }
+          // 生产环境保持相对路径（通过nginx代理）
+        } else if (!commentsApi) {
+          // 如果未配置，使用默认值
+          commentsApi = (window.location.protocol === 'https:' 
+            ? 'https://localhost:5000/api' 
+            : 'http://localhost:5000/api')
+        }
         window.COMMENTS_CDN_API = commentsApi
         window.COMMENTS_API = commentsApi
         btf.getScript('/js/comments.js').then(() => init(el, path)).catch(err => {

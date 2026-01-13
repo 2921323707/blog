@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page="admin">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>博客文章编辑器</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script>
+        // 在页面加载前阻止主题脚本
+        window.GLOBAL_CONFIG = window.GLOBAL_CONFIG || {};
+        window.GLOBAL_CONFIG_SITE = window.GLOBAL_CONFIG_SITE || {};
+        window.GLOBAL_CONFIG_SITE.pageType = 'admin';
+    </script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📝 博客文章编辑器</h1>
+
+        <form id="postForm">
+            <div class="form-group">
+                <label for="title">文章标题 *</label>
+                <input type="text" id="title" name="title" required placeholder="请输入文章标题">
+            </div>
+
+            <div class="form-group">
+                <label for="date">发布日期</label>
+                <input type="date" id="date" name="date">
+                <div class="help-text">留空则使用当前日期</div>
+            </div>
+
+            <div class="form-group">
+                <label>标签</label>
+                <div class="tags-input">
+                    <input type="text" class="tag-input" id="tagInput" placeholder="输入标签后按回车添加">
+                </div>
+                <div id="tagsContainer" class="tags-input"></div>
+            </div>
+
+            <div class="form-group">
+                <label>分类</label>
+                <div class="categories-input">
+                    <input type="text" class="category-input" id="categoryInput" placeholder="输入分类后按回车添加">
+                </div>
+                <div id="categoriesContainer" class="tags-input"></div>
+            </div>
+
+            <div class="form-group">
+                <label>图片上传</label>
+                <div class="upload-area" id="uploadArea">
+                    <p>📷 点击或拖拽图片到这里上传</p>
+                    <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                </div>
+                <div class="image-preview" id="imagePreview"></div>
+                <div class="help-text">上传的图片会自动插入到文章末尾，您可以在编辑器中移动位置</div>
+            </div>
+
+            <div class="form-group">
+                <label for="content">文章内容 (Markdown) *</label>
+                <textarea id="content" name="content" required placeholder="使用 Markdown 格式编写文章内容..."></textarea>
+                <div class="help-text">
+                    支持 Markdown 语法。图片引用格式: ![描述](/img/图片名.jpg)
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="btn" id="submitBtn">🚀 提交文章</button>
+                <button type="button" class="btn btn-secondary" id="previewBtn">👁️ 预览</button>
+            </div>
+
+            <div class="status" id="status"></div>
+        </form>
+    </div>
+
+    <script src="/static/js/admin.js"></script>
+</body>
+
+</html>

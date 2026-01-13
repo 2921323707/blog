@@ -627,6 +627,8 @@ twikoo:
   visitor: false
   # 评论API地址（支持CDN），例如：https://api.yourdomain.com/api 或 https://your-cdn.com/api
   # 如果未设置，将使用默认的本地地址 http://localhost:5000/api
+  # 开发环境：使用 /api（相对路径，需要手动改为 http://localhost:5000/api）
+  # 生产环境：使用 /api（通过nginx代理到后端）
   api_url: /api
   option:
 
