@@ -1,0 +1,8 @@
+twikoo.all.min.js:2  Uncaught (in promise) Error: 请升级 Twikoo 云函数版本再试，如果仍无法解决，请删除并重新创建 Twikoo 云函数 - https://twikoo.js.org
+    at twikoo.all.min.js:2:433280
+    at h (twikoo.all.min.js:2:563960)
+    at Generator.<anonymous> (twikoo.all.min.js:2:565306)
+    at Generator.throw (twikoo.all.min.js:2:564389)
+    at t (twikoo.all.min.js:2:560658)
+    at u (twikoo.all.min.js:2:560905)
+:4000/img/favicon.png:1   Failed to load resource: the server responded with a status of 404 (Not Found)

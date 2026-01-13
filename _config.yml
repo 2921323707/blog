@@ -1,0 +1,160 @@
+# Hexo Configuration
+# Docs: https://hexo.io/docs/configuration.html
+# Source: https://github.com/hexojs/hexo/
+
+# Site
+title: 嘟嘟可的个人博客
+subtitle: '分享技术与生活'
+description: 这里是嘟嘟可的秘密花园
+keywords: 博客,技术,生活,Hexo,Butterfly
+author: 嘟嘟可
+language: zh-CN
+timezone: 'Asia/Shanghai'
+
+# URL
+## 如果您的网站放在子目录中，请将 url 设置为 'http://yoursite.com/child'，root 设置为 '/child/'
+url: https://dodokolu.online
+root: /
+permalink: :year/:month/:day/:title/
+permalink_defaults:
+pretty_urls:
+  trailing_index: true # 设置为 false 以从永久链接中移除尾随的 'index.html'
+  trailing_html: true # 设置为 false 以从永久链接中移除尾随的 '.html'
+
+# Directory
+source_dir: source
+public_dir: public
+tag_dir: tags
+archive_dir: archives
+category_dir: categories
+code_dir: downloads/code
+i18n_dir: :lang
+skip_render:
+
+# Writing
+new_post_name: :title.md # 新文章的文件名
+default_layout: post
+titlecase: false # 将标题转换为标题格式
+external_link:
+  enable: true # 在新标签页中打开外部链接
+  field: site # 应用于整个网站
+  exclude: ''
+filename_case: 0
+render_drafts: false
+post_asset_folder: false
+relative_link: false
+future: true
+
+# Markdown renderer
+## https://github.com/hexojs/hexo-renderer-marked
+marked:
+  gfm: true
+  pedantic: false
+  sanitize: false
+  tables: true
+  breaks: true
+  smartLists: true
+  smartypants: true
+  modifyAnchors: ''
+  autolink: true
+  mangle: true
+  headerIds: true
+  headerPrefix: ''
+  xhtml: false
+highlight:
+  enable: true
+  line_number: true
+  auto_detect: false
+  tab_replace: ''
+  wrap: true
+  hljs: false
+prismjs:
+  enable: false
+  preprocess: true
+  line_number: true
+  tab_replace: ''
+
+# Home page setting
+# path: 博客首页的根路径（默认为 ''）
+# per_page: 每页显示的文章数（0 = 禁用分页）
+# order_by: 文章排序（默认按日期降序排列）
+index_generator:
+  path: ''
+  per_page: 10
+  order_by: -date
+
+# Archive Generator
+## https://github.com/hexojs/hexo-generator-archive
+archive_generator:
+  per_page: 10
+  yearly: true
+  monthly: true
+  daily: false
+
+# Category Generator
+## https://github.com/hexojs/hexo-generator-category
+category_generator:
+  per_page: 10
+
+# Tag Generator
+## https://github.com/hexojs/hexo-generator-tag
+tag_generator:
+  per_page: 10
+
+# Category & Tag
+default_category: uncategorized
+category_map:
+tag_map:
+
+# Metadata elements
+## https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta
+meta_generator: true
+
+# Date / Time format
+## Hexo uses Moment.js to parse and display date
+## You can customize the date format as defined in
+## http://momentjs.com/docs/#/displaying/format/
+date_format: YYYY-MM-DD
+time_format: HH:mm:ss
+## 除非在 front-matter 中设置，否则使用文章日期作为更新日期
+use_date_for_updated: false
+
+# Pagination
+## 将 per_page 设置为 0 以禁用分页
+per_page: 10
+pagination_dir: page
+
+# Search
+## https://github.com/next-theme/hexo-generator-search
+search:
+  path: search.xml
+  field: post
+  content: true
+  format: html
+
+# Include / Exclude file(s)
+## include:/exclude: 选项仅适用于 'source/' 文件夹
+include:
+exclude:
+ignore:
+
+# Server
+## https://hexo.io/docs/server.html
+server:
+  port: 4000
+  log: false
+  ip: 0.0.0.0
+  compress: false
+  header: true
+  serve_static: true
+  open: false
+
+# Extensions
+## Plugins: https://hexo.io/plugins/
+## Themes: https://hexo.io/themes/
+theme: butterfly
+
+# Deployment
+## Docs: https://hexo.io/docs/one-command-deployment
+deploy:
+  type: ''

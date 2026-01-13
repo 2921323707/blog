@@ -1,0 +1,33 @@
+{
+    "name": "blog",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "build": "hexo generate",
+        "clean": "hexo clean",
+        "deploy": "hexo deploy",
+        "server": "node server.js",
+        "start": "node start.js",
+        "dev": "hexo generate && node start.js",
+        "sync": "node sync-notes.js",
+        "sync:watch": "node sync-notes.js --watch"
+    },
+    "hexo": {
+        "version": "5.4.2"
+    },
+    "dependencies": {
+        "@fontsource/zcool-kuaile": "^5.2.7",
+        "chokidar": "^3.5.3",
+        "hexo": "^5.0.0",
+        "hexo-butterfly-extjs": "^1.5.4",
+        "hexo-generator-archive": "^1.0.0",
+        "hexo-generator-category": "^1.0.0",
+        "hexo-generator-index": "^2.0.0",
+        "hexo-generator-search": "^2.4.3",
+        "hexo-generator-tag": "^1.0.0",
+        "hexo-renderer-marked": "^4.1.0",
+        "hexo-renderer-pug": "^3.0.0",
+        "hexo-renderer-stylus": "^3.0.1",
+        "hexo-server": "^3.0.0"
+    }
+}

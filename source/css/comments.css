@@ -1,0 +1,351 @@
+/* 评论系统样式 */
+.twikoo-comments {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tk-comments-container {
+    margin-bottom: 30px;
+}
+
+.tk-comment {
+    display: flex;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tk-comment:hover {
+    border-color: #dee2e6;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tk-avatar {
+    flex-shrink: 0;
+    margin-right: 15px;
+}
+
+.tk-avatar img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #e9ecef;
+}
+
+.tk-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.tk-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    gap: 10px;
+}
+
+.tk-nick {
+    font-weight: 600;
+    color: #212529;
+    font-size: 14px;
+}
+
+.tk-date {
+    font-size: 12px;
+    color: #868e96;
+    margin-left: auto;
+}
+
+.tk-reply-to {
+    font-size: 12px;
+    color: #868e96;
+}
+
+.tk-reply-nick {
+    color: #49b1f5;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.tk-reply-nick:hover {
+    color: #ff7242;
+    text-decoration: underline;
+}
+
+.tk-content {
+    margin-bottom: 10px;
+    line-height: 1.6;
+    color: #212529;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.tk-content img.emoji,
+.tk-content span.emoji {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.tk-actions {
+    display: flex;
+    gap: 15px;
+}
+
+.tk-action {
+    font-size: 13px;
+    color: #49b1f5;
+    cursor: pointer;
+    transition: color 0.2s;
+    user-select: none;
+}
+
+.tk-action:hover {
+    color: #ff7242;
+}
+
+/* 移除嵌套样式，所有评论平铺显示 */
+
+.tk-comments-form {
+    margin-top: 30px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.reply-hint {
+    padding: 10px;
+    margin-bottom: 15px;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 4px;
+    color: #856404;
+    font-size: 14px;
+}
+
+.tk-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.tk-form textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.tk-form textarea:focus {
+    outline: none;
+    border-color: #49b1f5;
+}
+
+.tk-emoji-picker {
+    display: flex;
+    position: relative;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.tk-emoji-btn {
+    padding: 6px 12px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.tk-emoji-btn:hover {
+    background: #49b1f5;
+    color: #fff;
+    border-color: #49b1f5;
+}
+
+.tk-emoji-panel {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 10px;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 400px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.tk-emoji-panel.active {
+    display: block;
+}
+
+.tk-emoji-category {
+    margin-bottom: 15px;
+}
+
+.tk-emoji-category-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #868e96;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.tk-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+}
+
+.tk-emoji-item {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+    font-size: 20px;
+}
+
+.tk-emoji-item:hover {
+    background: #f8f9fa;
+}
+
+.tk-kaomoji-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.tk-kaomoji-item {
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+    text-align: left;
+}
+
+.tk-kaomoji-item:hover {
+    background: #e9ecef;
+}
+
+.tk-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.tk-form-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tk-form-actions .tk-btn-cancel {
+    background: #6c757d;
+    color: #fff;
+}
+
+.tk-form-actions .tk-btn-cancel:hover {
+    background: #5a6268;
+}
+
+.tk-form-actions .tk-btn-submit {
+    background: #49b1f5;
+    color: #fff;
+}
+
+.tk-form-actions .tk-btn-submit:hover {
+    background: #3a9de5;
+}
+
+.comment-error {
+    padding: 15px;
+    background: #f8d7da;
+    border-left: 4px solid #dc3545;
+    border-radius: 4px;
+    color: #721c24;
+    text-align: center;
+}
+
+/* 加载更多按钮样式 */
+.tk-load-more-container {
+    text-align: center;
+    margin: 20px 0;
+    padding: 15px 0;
+}
+
+.tk-load-more-btn {
+    padding: 10px 24px;
+    background: #fff;
+    border: 2px solid #49b1f5;
+    border-radius: 20px;
+    color: #49b1f5;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.tk-load-more-btn:hover {
+    background: #49b1f5;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(73, 177, 245, 0.3);
+}
+
+.tk-load-more-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(73, 177, 245, 0.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .tk-comment {
+        flex-direction: column;
+    }
+
+    .tk-avatar {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+
+    .tk-emoji-panel {
+        max-width: 100%;
+        left: 0;
+        right: 0;
+    }
+}
