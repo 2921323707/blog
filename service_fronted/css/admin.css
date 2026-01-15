@@ -1,28 +1,26 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-    background: #f5f5f5;
+/* Admin 页面样式 - 适配博客主题 */
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
     padding: 20px;
 }
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    padding: 30px;
+#page.admin-container {
+    padding: 20px;
 }
 
-h1 {
-    color: #333;
+.admin-container form {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: var(--card-shadow);
+    margin-top: 20px;
+}
+
+.admin-container h1 {
+    color: var(--font-color);
     margin-bottom: 30px;
-    border-bottom: 2px solid #4CAF50;
+    border-bottom: 2px solid var(--theme-color);
     padding-bottom: 10px;
 }
 
@@ -33,7 +31,7 @@ h1 {
 label {
     display: block;
     margin-bottom: 8px;
-    color: #555;
+    color: var(--font-color);
     font-weight: 500;
 }
 
@@ -42,16 +40,19 @@ input[type="date"],
 textarea {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid var(--hr-border);
+    border-radius: 8px;
     font-size: 14px;
     font-family: inherit;
+    background: var(--search-bg);
+    color: var(--font-color);
+    transition: border-color 0.3s;
 }
 
 input[type="text"]:focus,
 textarea:focus {
     outline: none;
-    border-color: #4CAF50;
+    border-color: var(--theme-color);
 }
 
 textarea {
@@ -93,24 +94,29 @@ textarea {
     min-width: 150px;
 }
 
-.upload-area {
-    border: 2px dashed #ddd;
-    border-radius: 4px;
+.upload-area,
+.cover-upload-area {
+    border: 2px dashed var(--hr-border);
+    border-radius: 8px;
     padding: 20px;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s;
     margin-bottom: 10px;
+    background: var(--search-bg);
 }
 
-.upload-area:hover {
-    border-color: #4CAF50;
-    background: #f9f9f9;
+.upload-area:hover,
+.cover-upload-area:hover {
+    border-color: var(--theme-color);
+    background: var(--card-bg);
 }
 
-.upload-area.dragover {
-    border-color: #4CAF50;
-    background: #e8f5e9;
+.upload-area.dragover,
+.cover-upload-area.dragover {
+    border-color: var(--theme-color);
+    background: var(--theme-color);
+    opacity: 0.1;
 }
 
 .image-preview {
@@ -149,25 +155,65 @@ textarea {
     font-size: 14px;
 }
 
+/* 封面图片预览样式 */
+.cover-preview {
+    margin-top: 10px;
+}
+
+.cover-preview-item {
+    position: relative;
+    max-width: 400px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cover-preview-item img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.cover-preview-item .remove {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .btn {
-    background: #4CAF50;
+    background: var(--theme-color);
     color: white;
     border: none;
     padding: 12px 24px;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
     font-weight: 500;
-    transition: background 0.3s;
+    transition: all 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn:hover {
-    background: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .btn:disabled {
-    background: #ccc;
+    background: var(--hr-border);
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .btn-secondary {
@@ -207,7 +253,7 @@ textarea {
 
 .help-text {
     font-size: 12px;
-    color: #999;
+    color: var(--second-text-color);
     margin-top: 5px;
 }
 
@@ -215,7 +261,7 @@ textarea {
 .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 9999;
     left: 0;
     top: 0;
     width: 100%;
@@ -241,8 +287,8 @@ textarea {
 }
 
 .modal-content {
-    background-color: white;
-    border-radius: 8px;
+    background-color: var(--card-bg);
+    border-radius: 12px;
     width: 90%;
     max-width: 900px;
     max-height: 90vh;
@@ -274,7 +320,7 @@ textarea {
 
 .modal-header h2 {
     margin: 0;
-    color: #333;
+    color: var(--font-color);
     border: none;
     padding: 0;
 }
@@ -282,14 +328,14 @@ textarea {
 .modal-close {
     font-size: 28px;
     font-weight: bold;
-    color: #999;
+    color: var(--second-text-color);
     cursor: pointer;
     line-height: 1;
     transition: color 0.3s;
 }
 
 .modal-close:hover {
-    color: #333;
+    color: var(--font-color);
 }
 
 .modal-body {
@@ -301,7 +347,7 @@ textarea {
 /* Markdown 预览样式 */
 .markdown-preview {
     line-height: 1.6;
-    color: #333;
+    color: var(--font-color);
 }
 
 .markdown-preview h1,

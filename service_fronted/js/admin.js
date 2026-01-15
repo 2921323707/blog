@@ -62,6 +62,7 @@ const API_BASE = window.location.origin.includes('5000')
 let tags = [];
 let categories = [];
 let uploadedImages = [];
+let coverImageUrl = null;
 
 // 设置默认日期为今天
 document.getElementById('date').valueAsDate = new Date();
@@ -132,6 +133,80 @@ function updateCategoriesDisplay() {
     });
 }
 
+// 封面图片上传
+const coverUploadArea = document.getElementById('coverUploadArea');
+const coverFileInput = document.getElementById('coverFileInput');
+const coverPreview = document.getElementById('coverPreview');
+
+coverUploadArea.addEventListener('click', () => coverFileInput.click());
+
+coverUploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    coverUploadArea.classList.add('dragover');
+});
+
+coverUploadArea.addEventListener('dragleave', () => {
+    coverUploadArea.classList.remove('dragover');
+});
+
+coverUploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    coverUploadArea.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+        handleCoverUpload(files[0]);
+    }
+});
+
+coverFileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleCoverUpload(e.target.files[0]);
+    }
+});
+
+async function handleCoverUpload(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'cover');  // 指定为封面图片
+
+    try {
+        const response = await fetch(`${API_BASE}/posts/upload-image`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.errno === 0) {
+            coverImageUrl = result.data.url;
+            
+            // 显示预览
+            const imageSrc = `http://localhost:5000${coverImageUrl}`;
+            const coverItem = document.createElement('div');
+            coverItem.className = 'cover-preview-item';
+            coverItem.innerHTML = `
+                <img src="${imageSrc}" alt="封面预览">
+                <button type="button" class="remove">×</button>
+            `;
+            coverPreview.innerHTML = '';
+            coverPreview.appendChild(coverItem);
+            
+            // 添加删除按钮事件
+            coverItem.querySelector('.remove').addEventListener('click', removeCover);
+        } else {
+            alert('封面图片上传失败: ' + result.errmsg);
+        }
+    } catch (error) {
+        alert('封面图片上传失败: ' + error.message);
+    }
+}
+
+function removeCover() {
+    coverImageUrl = null;
+    coverPreview.innerHTML = '';
+    coverFileInput.value = '';
+}
+
 // 图片上传
 const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileInput');
@@ -168,6 +243,7 @@ async function handleFiles(files) {
 async function uploadImage(file) {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('type', 'content');  // 指定为内容图片
 
     try {
         const response = await fetch(`${API_BASE}/posts/upload-image`, {
@@ -220,6 +296,7 @@ document.getElementById('postForm').addEventListener('submit', async (e) => {
         content: document.getElementById('content').value.trim(),
         tags: tags,
         categories: categories,
+        cover: coverImageUrl || undefined,
         date: document.getElementById('date').value || undefined
     };
 
@@ -248,9 +325,11 @@ document.getElementById('postForm').addEventListener('submit', async (e) => {
                 tags = [];
                 categories = [];
                 uploadedImages = [];
+                coverImageUrl = null;
                 updateTagsDisplay();
                 updateCategoriesDisplay();
                 imagePreview.innerHTML = '';
+                coverPreview.innerHTML = '';
                 document.getElementById('date').valueAsDate = new Date();
                 status.className = 'status';
             }, 5000);

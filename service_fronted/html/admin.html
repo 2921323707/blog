@@ -1,13 +1,166 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-page="admin">
+<html lang="zh-CN" data-theme="light" data-page="admin">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover">
     <meta name="robots" content="noindex, nofollow">
-    <title>博客文章编辑器</title>
+    <title>博客文章编辑器 - 嘟嘟可的个人博客</title>
+    <meta name="author" content="嘟嘟可">
+    <meta name="copyright" content="嘟嘟可">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- 从博客站点引用 CSS -->
+    <link rel="stylesheet" href="http://localhost:4000/css/index.css?v=5.5.4-b1">
+    <!-- 使用 CDN 版本的 FontAwesome 以避免跨域字体文件问题 -->
+    <!-- FontAwesome 6 与 7 类名兼容，使用 6 版本以确保稳定性 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+    <!-- 注释掉 custom-fonts.css 以避免 CORS 跨域问题（自定义字体非必需） -->
+    <!-- <link rel="stylesheet" href="http://localhost:4000/css/custom-fonts.css"> -->
     <link rel="stylesheet" href="/static/css/admin.css">
+
+    <!-- 博客主题的全局配置脚本 -->
+    <script>
+        (() => {
+            const saveToLocal = {
+                set: (key, value, ttl) => {
+                    if (!ttl) return
+                    const expiry = Date.now() + ttl * 86400000
+                    localStorage.setItem(key, JSON.stringify({ value, expiry }))
+                },
+                get: key => {
+                    const itemStr = localStorage.getItem(key)
+                    if (!itemStr) return undefined
+                    const { value, expiry } = JSON.parse(itemStr)
+                    if (Date.now() > expiry) {
+                        localStorage.removeItem(key)
+                        return undefined
+                    }
+                    return value
+                }
+            }
+
+            window.btf = {
+                saveToLocal,
+                getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+                    const script = document.createElement('script')
+                    script.src = url
+                    script.async = true
+                    Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+                    script.onload = script.onreadystatechange = () => {
+                        if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+                    }
+                    script.onerror = reject
+                    document.head.appendChild(script)
+                }),
+                getCSS: (url, id) => new Promise((resolve, reject) => {
+                    const link = document.createElement('link')
+                    link.rel = 'stylesheet'
+                    link.href = url
+                    if (id) link.id = id
+                    link.onload = link.onreadystatechange = () => {
+                        if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+                    }
+                    link.onerror = reject
+                    document.head.appendChild(link)
+                }),
+                addGlobalFn: (key, fn, name = false, parent = window) => {
+                    if (!false && key.startsWith('pjax')) return
+                    const globalFn = parent.globalFn || {}
+                    globalFn[key] = globalFn[key] || {}
+                    globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+                    parent.globalFn = globalFn
+                }
+            }
+
+            const activateDarkMode = () => {
+                document.documentElement.setAttribute('data-theme', 'dark')
+                if (document.querySelector('meta[name="theme-color"]') !== null) {
+                    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+                }
+            }
+            const activateLightMode = () => {
+                document.documentElement.setAttribute('data-theme', 'light')
+                if (document.querySelector('meta[name="theme-color"]') !== null) {
+                    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+                }
+            }
+
+            btf.activateDarkMode = activateDarkMode
+            btf.activateLightMode = activateLightMode
+
+            const theme = saveToLocal.get('theme')
+            theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+
+            const asideStatus = saveToLocal.get('aside-status')
+            if (asideStatus !== undefined) {
+                document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+            }
+
+            const detectApple = () => {
+                if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+                    document.documentElement.classList.add('apple')
+                }
+            }
+            detectApple()
+        })()
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+
+    <script>
+        const GLOBAL_CONFIG = {
+            root: '/',
+            algolia: undefined,
+            localSearch: undefined,
+            translate: undefined,
+            highlight: undefined,
+            copy: {
+                success: '复制成功',
+                error: '复制失败',
+                noSupport: '浏览器不支持'
+            },
+            relativeDate: {
+                homepage: false,
+                post: false
+            },
+            runtime: '',
+            dateSuffix: {
+                just: '刚刚',
+                min: '分钟前',
+                hour: '小时前',
+                day: '天前',
+                month: '个月前'
+            },
+            copyright: undefined,
+            lightbox: undefined,
+            Snackbar: undefined,
+            infinitegrid: undefined,
+            isPhotoFigcaption: false,
+            islazyloadPlugin: false,
+            isAnchor: false,
+            percent: {
+                toc: true,
+                rightside: false,
+            },
+            autoDarkmode: false
+        }
+    </script>
+
+    <script id="config-diff">
+        var GLOBAL_CONFIG_SITE = {
+            title: '嘟嘟可的个人博客',
+            isHighlightShrink: false,
+            isToc: false,
+            pageType: 'admin'
+        }
+    </script>
+
     <script>
         // 在页面加载前阻止主题脚本并设置错误处理
         window.GLOBAL_CONFIG = window.GLOBAL_CONFIG || {};
@@ -51,63 +204,234 @@
 </head>
 
 <body>
-    <div class="container">
-        <h1>博客文章编辑器</h1>
-
-        <form id="postForm">
-            <div class="form-group">
-                <label for="title">文章标题 *</label>
-                <input type="text" id="title" name="title" required placeholder="请输入文章标题">
+    <!-- 侧边栏 -->
+    <div id="sidebar">
+        <div id="menu-mask"></div>
+        <div id="sidebar-menus">
+            <div class="avatar-img text-center">
+                <img src="http://localhost:4000/img/avator.jpg"
+                    onerror="this.onerror=null;this.src='http://localhost:4000/img/friend_404.gif'" alt="avatar">
             </div>
-
-            <div class="form-group">
-                <label for="date">发布日期</label>
-                <input type="date" id="date" name="date">
-                <div class="help-text">留空则使用当前日期</div>
+            <div class="site-data text-center">
+                <a href="http://localhost:4000/archives/">
+                    <div class="headline">文章</div>
+                    <div class="length-num">6</div>
+                </a>
+                <a href="http://localhost:4000/tags/">
+                    <div class="headline">标签</div>
+                    <div class="length-num">12</div>
+                </a>
+                <a href="http://localhost:4000/categories/">
+                    <div class="headline">分类</div>
+                    <div class="length-num">1</div>
+                </a>
             </div>
-
-            <div class="form-group">
-                <label>标签</label>
-                <div class="tags-input">
-                    <input type="text" class="tag-input" id="tagInput" placeholder="输入标签后按回车添加">
+            <div class="menus_items">
+                <div class="menus_item">
+                    <a class="site-page" href="http://localhost:4000/">
+                        <i class="fa-fw fas fa-home"></i><span> 首页</span>
+                    </a>
                 </div>
-                <div id="tagsContainer" class="tags-input"></div>
-            </div>
-
-            <div class="form-group">
-                <label>分类</label>
-                <div class="categories-input">
-                    <input type="text" class="category-input" id="categoryInput" placeholder="输入分类后按回车添加">
+                <div class="menus_item">
+                    <a class="site-page" href="http://localhost:4000/archives/">
+                        <i class="fa-fw fas fa-archive"></i><span> 归档</span>
+                    </a>
                 </div>
-                <div id="categoriesContainer" class="tags-input"></div>
-            </div>
-
-            <div class="form-group">
-                <label>图片上传</label>
-                <div class="upload-area" id="uploadArea">
-                    <p>📷 点击或拖拽图片到这里上传</p>
-                    <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                <div class="menus_item">
+                    <a class="site-page" href="http://localhost:4000/categories/">
+                        <i class="fa-fw fas fa-folder-open"></i><span> 分类</span>
+                    </a>
                 </div>
-                <div class="image-preview" id="imagePreview"></div>
-                <div class="help-text">上传的图片会自动插入到文章末尾，您可以在编辑器中移动位置</div>
-            </div>
-
-            <div class="form-group">
-                <label for="content">文章内容 (Markdown) *</label>
-                <textarea id="content" name="content" required placeholder="使用 Markdown 格式编写文章内容..."></textarea>
-                <div class="help-text">
-                    支持 Markdown 语法。图片引用格式: ![描述](/img/图片名.jpg)<br>
-                    外部链接格式: [链接文本](https://example.com) - 点击预览按钮可查看渲染效果
+                <div class="menus_item">
+                    <a class="site-page" href="http://localhost:4000/tags/">
+                        <i class="fa-fw fas fa-tags"></i><span> 标签</span>
+                    </a>
+                </div>
+                <div class="menus_item">
+                    <a class="site-page" href="http://localhost:4000/ai/">
+                        <i class="fa-fw fas fa-robot"></i><span> 嘟嘟可</span>
+                    </a>
+                </div>
+                <div class="menus_item">
+                    <a class="site-page" href="/admin.html">
+                        <i class="fa-fw fas fa-edit"></i><span> 编辑器</span>
+                    </a>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="actions">
-                <button type="submit" class="btn" id="submitBtn">提交文章</button>
-                <button type="button" class="btn btn-secondary" id="previewBtn">预览</button>
+    <!-- 主体容器 -->
+    <div class="page" id="body-wrap">
+        <!-- 头部 -->
+        <header class="not-home-page" id="page-header" style="background-image: url(http://localhost:4000/img/bc.jpg);">
+            <nav id="nav">
+                <span id="blog-info">
+                    <a class="nav-site-title" href="http://localhost:4000/">
+                        <span class="site-name">嘟嘟可的个人博客</span>
+                    </a>
+                </span>
+                <div id="menus">
+                    <div id="search-button">
+                        <span class="site-page social-icon search">
+                            <i class="fas fa-search fa-fw"></i><span> 搜索</span>
+                        </span>
+                    </div>
+                    <div class="menus_items">
+                        <div class="menus_item">
+                            <a class="site-page" href="http://localhost:4000/">
+                                <i class="fa-fw fas fa-home"></i><span> 首页</span>
+                            </a>
+                        </div>
+                        <div class="menus_item">
+                            <a class="site-page" href="http://localhost:4000/archives/">
+                                <i class="fa-fw fas fa-archive"></i><span> 归档</span>
+                            </a>
+                        </div>
+                        <div class="menus_item">
+                            <a class="site-page" href="http://localhost:4000/categories/">
+                                <i class="fa-fw fas fa-folder-open"></i><span> 分类</span>
+                            </a>
+                        </div>
+                        <div class="menus_item">
+                            <a class="site-page" href="http://localhost:4000/tags/">
+                                <i class="fa-fw fas fa-tags"></i><span> 标签</span>
+                            </a>
+                        </div>
+                        <div class="menus_item">
+                            <a class="site-page" href="http://localhost:4000/ai/">
+                                <i class="fa-fw fas fa-robot"></i><span> 嘟嘟可</span>
+                            </a>
+                        </div>
+                        <div class="menus_item">
+                            <a class="site-page" href="/admin.html">
+                                <i class="fa-fw fas fa-edit"></i><span> 编辑器</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div id="toggle-menu">
+                        <span class="site-page"><i class="fas fa-bars fa-fw"></i></span>
+                    </div>
+                </div>
+            </nav>
+            <div id="page-site-info">
+                <h1 id="site-title">博客文章编辑器</h1>
             </div>
+        </header>
 
-            <div class="status" id="status"></div>
-        </form>
+        <!-- 主要内容区域 -->
+        <main class="layout" id="content-inner">
+            <div id="page" class="nc">
+                <div class="admin-container">
+                    <form id="postForm">
+                        <div class="form-group">
+                            <label for="title">文章标题 *</label>
+                            <input type="text" id="title" name="title" required placeholder="请输入文章标题">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date">发布日期</label>
+                            <input type="date" id="date" name="date">
+                            <div class="help-text">留空则使用当前日期</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>标签</label>
+                            <div class="tags-input">
+                                <input type="text" class="tag-input" id="tagInput" placeholder="输入标签后按回车添加">
+                            </div>
+                            <div id="tagsContainer" class="tags-input"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>分类</label>
+                            <div class="categories-input">
+                                <input type="text" class="category-input" id="categoryInput" placeholder="输入分类后按回车添加">
+                            </div>
+                            <div id="categoriesContainer" class="tags-input"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>封面图片</label>
+                            <div class="cover-upload-area" id="coverUploadArea">
+                                <p>🖼️ 点击或拖拽封面图片到这里上传</p>
+                                <input type="file" id="coverFileInput" accept="image/*" style="display: none;">
+                            </div>
+                            <div class="cover-preview" id="coverPreview"></div>
+                            <div class="help-text">上传封面图片后，文章列表和详情页将显示此封面（可选）</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>图片上传</label>
+                            <div class="upload-area" id="uploadArea">
+                                <p>📷 点击或拖拽图片到这里上传</p>
+                                <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                            </div>
+                            <div class="image-preview" id="imagePreview"></div>
+                            <div class="help-text">上传的图片会自动插入到文章末尾，您可以在编辑器中移动位置</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="content">文章内容 (Markdown) *</label>
+                            <textarea id="content" name="content" required
+                                placeholder="使用 Markdown 格式编写文章内容..."></textarea>
+                            <div class="help-text">
+                                支持 Markdown 语法。图片引用格式: ![描述](/img/图片名.jpg)<br>
+                                外部链接格式: [链接文本](https://example.com) - 点击预览按钮可查看渲染效果
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <button type="submit" class="btn" id="submitBtn">提交文章</button>
+                            <button type="button" class="btn btn-secondary" id="previewBtn">预览</button>
+                        </div>
+
+                        <div class="status" id="status"></div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer id="footer">
+            <div class="footer-other">
+                <div class="footer-copyright">
+                    <span class="copyright">&copy;&nbsp;2025 - 2026 By 嘟嘟可</span>
+                    <span class="framework-info">
+                        <span>框架 </span>
+                        <a target="_blank" rel="noopener" href="https://hexo.io">Hexo 5.4.2</a>
+                        <span class="footer-separator">|</span>
+                        <span>主题 </span>
+                        <a target="_blank" rel="noopener"
+                            href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4-b1</a>
+                    </span>
+                </div>
+                <div class="footer_custom_text">
+                    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2024081553号</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 右侧工具 -->
+    <div id="rightside">
+        <div id="rightside-config-hide">
+            <button id="darkmode" type="button" title="日间和夜间模式切换">
+                <i class="fas fa-adjust"></i>
+            </button>
+            <button id="hide-aside-btn" type="button" title="单栏和双栏切换">
+                <i class="fas fa-arrows-alt-h"></i>
+            </button>
+        </div>
+        <div id="rightside-config-show">
+            <button id="rightside-config" type="button" title="设置">
+                <i class="fas fa-cog fa-spin"></i>
+            </button>
+            <button id="go-up" type="button" title="回到顶部">
+                <span class="scroll-percent"></span>
+                <i class="fas fa-arrow-up"></i>
+            </button>
+        </div>
     </div>
 
     <!-- 预览模态框 -->
@@ -123,6 +447,9 @@
         </div>
     </div>
 
+    <!-- 从博客站点引用 JS -->
+    <script src="http://localhost:4000/js/utils.js?v=5.5.4-b1"></script>
+    <script src="http://localhost:4000/js/main.js?v=5.5.4-b1"></script>
     <script src="/static/js/admin.js"></script>
 </body>
 

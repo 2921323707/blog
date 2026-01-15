@@ -789,12 +789,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const addLastPushDate = () => {
     const $lastPushDateItem = document.getElementById('last-push-date')
     if (!$lastPushDateItem) return
-    
+
     // 优先从后端API获取，如果失败则使用data属性
     const API_BASE = window.COMMENTS_API || window.COMMENTS_CDN_API || (window.location.protocol === 'https:'
       ? 'https://localhost:5000/api'
       : 'http://localhost:5000/api')
-    
+
     fetch(`${API_BASE}/stats`)
       .then(res => res.json())
       .then(data => {
@@ -906,14 +906,61 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const lazyloadImg = () => {
+    // 创建加载指示器的辅助函数
+    const addLoadingSpinner = (img) => {
+      const container = img.closest('.post_cover, .post-bg-container, a') || img.parentElement
+      if (container && !container.querySelector('.lazyload-spinner')) {
+        const spinner = document.createElement('div')
+        spinner.className = 'lazyload-spinner'
+        spinner.innerHTML = '<div class="spinner-ring"></div>'
+        if (getComputedStyle(container).position === 'static') {
+          container.style.position = 'relative'
+        }
+        container.appendChild(spinner)
+      }
+    }
+
+    // 移除加载指示器的辅助函数
+    const removeLoadingSpinner = (img) => {
+      const container = img.closest('.post_cover, .post-bg-container, a') || img.parentElement
+      if (container) {
+        const spinner = container.querySelector('.lazyload-spinner')
+        if (spinner) {
+          spinner.style.opacity = '0'
+          setTimeout(() => {
+            if (spinner.parentNode) {
+              spinner.remove()
+            }
+          }, 300)
+        }
+      }
+    }
+
     window.lazyLoadInstance = new LazyLoad({
       elements_selector: 'img',
       threshold: 0,
       data_src: 'lazy-src',
+      callback_enter: (img) => {
+        // 图片进入视口时，添加loading状态和加载指示器
+        if (!img.classList.contains('loaded') && !img.classList.contains('loading')) {
+          img.classList.add('loading')
+          img.setAttribute('data-ll-status', 'loading')
+          addLoadingSpinner(img)
+        }
+      },
       callback_loaded: (img) => {
-        // 确保图片加载完成后添加loaded类，触发淡入动画
+        // 图片加载完成后移除loading类，添加loaded类
+        img.classList.remove('loading')
         img.classList.add('loaded')
         img.setAttribute('data-ll-status', 'loaded')
+        removeLoadingSpinner(img)
+      },
+      callback_error: (img) => {
+        // 图片加载失败时移除loading类
+        img.classList.remove('loading')
+        img.classList.add('error')
+        img.setAttribute('data-ll-status', 'error')
+        removeLoadingSpinner(img)
       }
     })
 

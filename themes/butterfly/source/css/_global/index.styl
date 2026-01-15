@@ -262,27 +262,87 @@ if hexo-config('lazyload.enable') && hexo-config('lazyload.blur') && !hexo-confi
 if hexo-config('lazyload.enable')
   img
     // 懒加载图片初始状态：透明
-    &[data-lazy-src]:not(.loaded):not(.error)
+    &[data-lazy-src]:not(.loaded):not(.error):not(.loading)
       opacity: 0
       transition: opacity 0.6s ease-in-out
+
+    // 懒加载图片加载中：显示占位背景和加载动画
+    &[data-lazy-src].loading,
+    &[data-lazy-src][data-ll-status="loading"]
+      opacity: 0.2
+      transition: opacity 0.3s ease-in-out
+      filter: blur(2px)
 
     // 懒加载图片加载完成后：显示
     &[data-lazy-src].loaded,
     &[data-lazy-src][data-ll-status="loaded"],
     &[data-lazy-src].entered.loaded
       opacity: 1
+      filter: blur(0)
 
   // 为文章封面图片添加淡入动画
   .post-bg
-    &[data-lazy-src]:not(.loaded):not(.error)
+    &[data-lazy-src]:not(.loaded):not(.error):not(.loading)
       opacity: 0
       transition: opacity 0.6s ease-in-out, transform .6s, filter 375ms ease-in .2s
+
+    &[data-lazy-src].loading,
+    &[data-lazy-src][data-ll-status="loading"]
+      opacity: 0.2
+      transition: opacity 0.3s ease-in-out, filter 0.3s ease-in-out
+      filter: blur(2px)
 
     &[data-lazy-src].loaded,
     &[data-lazy-src][data-ll-status="loaded"],
     &[data-lazy-src].entered.loaded,
     &.entered.loaded
       opacity: 1
+      filter: blur(0)
+
+  // 懒加载加载指示器样式
+  .lazyload-spinner
+    position: absolute
+    top: 0
+    left: 0
+    z-index: 10
+    display: flex
+    align-items: center
+    justify-content: center
+    width: 100%
+    height: 100%
+    pointer-events: none
+    opacity: 1
+    transition: opacity 0.3s ease-in-out
+    background: linear-gradient(90deg, 
+      rgba(0, 0, 0, 0.05) 0%, 
+      rgba(0, 0, 0, 0.1) 50%, 
+      rgba(0, 0, 0, 0.05) 100%)
+    background-size: 200% 100%
+    animation: lazyload-shimmer 1.5s infinite
+
+    .spinner-ring
+      width: 48px
+      height: 48px
+      border: 4px solid rgba(255, 255, 255, 0.2)
+      border-top-color: #49b1f5
+      border-right-color: #49b1f5
+      border-radius: 50%
+      animation: lazyload-spin 0.8s linear infinite
+      box-shadow: 0 2px 8px rgba(73, 177, 245, 0.3)
+
+  // 旋转动画
+  @keyframes lazyload-spin
+    0%
+      transform: rotate(0deg)
+    100%
+      transform: rotate(360deg)
+
+  // 骨架屏光晕动画
+  @keyframes lazyload-shimmer
+    0%
+      background-position: -200% 0
+    100%
+      background-position: 200% 0
 
 .img-alt
   margin: -10px 0 10px

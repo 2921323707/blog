@@ -12,17 +12,22 @@ bp = Blueprint('posts', __name__)
 BASE_DIR = Path(__file__).parent.parent.parent
 POSTS_DIR = BASE_DIR / "source" / "_posts"
 IMAGES_DIR = BASE_DIR / "source" / "img"
+COVERS_DIR = IMAGES_DIR / "covers"  # 封面图片目录
+CONTENT_IMAGES_DIR = IMAGES_DIR / "content"  # 内容图片目录
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
 
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def generate_front_matter(title, date, tags, categories):
+def generate_front_matter(title, date, tags, categories, cover=None):
     """生成 Hexo front-matter"""
     front_matter = "---\n"
     front_matter += f"title: {title}\n"
     front_matter += f"date: {date}\n"
+    
+    if cover:
+        front_matter += f"cover: {cover}\n"
     
     if tags:
         front_matter += "tags:\n"
@@ -73,6 +78,7 @@ def submit_post():
         content = data.get('content', '').strip()
         tags = data.get('tags', []) or []
         categories = data.get('categories', []) or []
+        cover = data.get('cover', '').strip() or None
         date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
         
         # 确保 tags 和 categories 是列表类型
@@ -96,7 +102,7 @@ def submit_post():
         content = process_images_in_markdown(content)
         
         # 生成 front-matter
-        front_matter = generate_front_matter(title, date, tags, categories)
+        front_matter = generate_front_matter(title, date, tags, categories, cover)
         
         # 生成完整的文章内容
         post_content = front_matter + "\n\n" + content
@@ -209,13 +215,22 @@ def list_posts():
 
 @bp.route('/posts/upload-image', methods=['POST'])
 def upload_image():
-    """上传图片"""
+    """上传图片
+    支持通过 type 参数区分封面图片和内容图片：
+    - type=cover: 上传到 /img/covers/ 目录
+    - type=content 或未指定: 上传到 /img/content/ 目录
+    """
     if 'file' not in request.files:
         return jsonify({'errno': 1, 'errmsg': '没有文件'}), 400
     
     file = request.files['file']
     if file.filename == '':
         return jsonify({'errno': 1, 'errmsg': '文件名为空'}), 400
+    
+    # 获取图片类型（cover 或 content）
+    image_type = request.form.get('type', 'content').lower()
+    if image_type not in ['cover', 'content']:
+        image_type = 'content'
     
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -224,13 +239,20 @@ def upload_image():
         name, ext = os.path.splitext(filename)
         filename = f"{name}_{timestamp}{ext}"
         
+        # 根据类型选择存储目录
+        if image_type == 'cover':
+            target_dir = COVERS_DIR
+            image_url = f"/img/covers/{filename}"
+        else:
+            target_dir = CONTENT_IMAGES_DIR
+            image_url = f"/img/content/{filename}"
+        
         # 确保目录存在
-        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-        filepath = IMAGES_DIR / filename
+        target_dir.mkdir(parents=True, exist_ok=True)
+        filepath = target_dir / filename
         file.save(str(filepath))
         
-        # 返回相对路径，用于 markdown 中引用
-        image_url = f"/img/{filename}"
+        # 返回相对路径
         return jsonify({'errno': 0, 'data': {'url': image_url, 'filename': filename}})
     
     return jsonify({'errno': 1, 'errmsg': '不支持的文件类型'}), 400

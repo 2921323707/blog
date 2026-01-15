@@ -187,6 +187,32 @@
         })
 
         if (!window.fancyboxRun) {
+          // 检测是否为移动端
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768
+          
+          // 根据设备类型设置工具栏中间按钮
+          const toolbarMiddle = isMobile ? [] : [
+            'zoomIn',
+            'zoomOut',
+            'toggle1to1',
+            'rotateCCW',
+            'rotateCW',
+            'flipX',
+            'flipY'
+          ]
+          
+          // Fancybox 6 版本的工具栏中间按钮
+          const toolbarMiddleV6 = isMobile ? [] : [
+            'zoomIn',
+            'zoomOut',
+            'toggle1to1',
+            'rotateCCW',
+            'rotateCW',
+            'flipX',
+            'flipY',
+            'reset'
+          ]
+
           let options = ''
           if (Fancybox.version < '6') {
             options = {
@@ -205,15 +231,7 @@
               Toolbar: {
                 display: {
                   left: ['infobar'],
-                  middle: [
-                    'zoomIn',
-                    'zoomOut',
-                    'toggle1to1',
-                    'rotateCCW',
-                    'rotateCW',
-                    'flipX',
-                    'flipY'
-                  ],
+                  middle: toolbarMiddle,
                   right: ['slideshow', 'thumbs', 'close']
                 }
               }
@@ -229,16 +247,7 @@
                 Toolbar: {
                   display: {
                     left: ['counter'],
-                    middle: [
-                      'zoomIn',
-                      'zoomOut',
-                      'toggle1to1',
-                      'rotateCCW',
-                      'rotateCW',
-                      'flipX',
-                      'flipY',
-                      'reset'
-                    ],
+                    middle: toolbarMiddleV6,
                     right: ['autoplay', 'thumbs', 'close']
                   }
                 },
