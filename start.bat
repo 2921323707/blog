@@ -13,10 +13,9 @@ if not exist "venv" (
 REM 激活虚拟环境
 call venv\Scripts\activate.bat
 
-REM 配置pip镜像并安装依赖
+REM 安装依赖（使用清华镜像）
 echo 安装Python依赖...
-pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-pip install -r backend\requirements.txt
+pip install -r backend\requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 REM 安装npm依赖
 echo 安装npm依赖...

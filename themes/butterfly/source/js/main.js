@@ -906,17 +906,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const lazyloadImg = () => {
-    // 创建加载指示器的辅助函数
+    // 创建加载指示器的辅助函数（Skeleton Screen）
     const addLoadingSpinner = (img) => {
       const container = img.closest('.post_cover, .post-bg-container, a') || img.parentElement
       if (container && !container.querySelector('.lazyload-spinner')) {
         const spinner = document.createElement('div')
         spinner.className = 'lazyload-spinner'
         spinner.innerHTML = '<div class="spinner-ring"></div>'
-        if (getComputedStyle(container).position === 'static') {
+        
+        // 确保容器有相对定位
+        const containerStyle = getComputedStyle(container)
+        if (containerStyle.position === 'static') {
           container.style.position = 'relative'
         }
+        
         container.appendChild(spinner)
+        // 添加一个小延迟以确保动画流畅
+        requestAnimationFrame(() => {
+          spinner.style.opacity = '1'
+        })
       }
     }
 
@@ -927,6 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const spinner = container.querySelector('.lazyload-spinner')
         if (spinner) {
           spinner.style.opacity = '0'
+          spinner.style.transition = 'opacity 0.3s ease-in-out'
           setTimeout(() => {
             if (spinner.parentNode) {
               spinner.remove()
@@ -936,9 +945,25 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 初始化：为所有有 data-lazy-src 但未加载的图片添加骨架屏
+    const initLazyImages = () => {
+      const lazyImages = document.querySelectorAll('img.post-bg[data-lazy-src]:not(.loaded)')
+      lazyImages.forEach(img => {
+        // 检查图片是否已经在视口内或即将加载
+        if (!img.classList.contains('loading') && !img.classList.contains('loaded')) {
+          // 如果图片在视口内，显示骨架屏
+          const rect = img.getBoundingClientRect()
+          const isInViewport = rect.top < window.innerHeight + 200 && rect.bottom > -200
+          if (isInViewport) {
+            addLoadingSpinner(img)
+          }
+        }
+      })
+    }
+
     window.lazyLoadInstance = new LazyLoad({
-      elements_selector: 'img',
-      threshold: 0,
+      elements_selector: 'img[data-lazy-src]',
+      threshold: 200, // 提前 200px 开始加载
       data_src: 'lazy-src',
       callback_enter: (img) => {
         // 图片进入视口时，添加loading状态和加载指示器
@@ -953,6 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
         img.classList.remove('loading')
         img.classList.add('loaded')
         img.setAttribute('data-ll-status', 'loaded')
+        img.classList.add('entered')
         removeLoadingSpinner(img)
       },
       callback_error: (img) => {
@@ -961,11 +987,22 @@ document.addEventListener('DOMContentLoaded', () => {
         img.classList.add('error')
         img.setAttribute('data-ll-status', 'error')
         removeLoadingSpinner(img)
+        // 如果设置了错误处理，触发 onerror
+        if (img.onerror && typeof img.onerror === 'function') {
+          img.onerror.call(img)
+        }
       }
     })
 
+    // 初始化已存在的懒加载图片
+    initLazyImages()
+
     btf.addGlobalFn('pjaxComplete', () => {
-      window.lazyLoadInstance.update()
+      if (window.lazyLoadInstance) {
+        window.lazyLoadInstance.update()
+        // 重新初始化新加载的图片
+        setTimeout(initLazyImages, 100)
+      }
     }, 'lazyload')
   }
 

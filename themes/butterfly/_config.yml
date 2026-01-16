@@ -48,7 +48,7 @@ code_blocks:
 #   icon: link || the description || color
 social:
   fab fa-github: https://github.com/2921323707 || Github || '#24292e'
-  fab fa-qq: tencent://message/?uin=2921323707 || QQ || '#12b7f5'
+  fab fa-qq: https://user.qzone.qq.com/2921323707/main || QQ || '#12b7f5'
   fas fa-envelope: mailto:cjye29213@gmail.com || Email || '#4a7dbe'
 
 # --------------------------------------
@@ -751,8 +751,8 @@ ad:
 site_verification:
   # - name: google-site-verification
   #   content: xxxxxx
-  # - name: baidu-site-verification
-  #   content: xxxxxxx
+  - name: baidu-site-verification
+    content: codeva-o8JoOlDMUU
 
 # --------------------------------------
 # Beautify / Effect

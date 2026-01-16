@@ -42,6 +42,7 @@ $indexEnable = hexo-config('cover.index_enable')
 
     .post_cover
       overflow: hidden
+      position: relative // 确保骨架屏可以正确定位
 
       if ($indexLayout != 5 && ($indexLayout != 7))
         +maxWidth768()
@@ -76,9 +77,18 @@ $indexEnable = hexo-config('cover.index_enable')
           content: ''
           backdrop-filter: blur(3px)
 
+      // 确保链接也是相对定位，以便骨架屏显示
+      > a
+        position: relative
+        display: block
+        width: 100%
+        height: 100%
+
       .post-bg
         z-index: -4
         @extend .imgHover
+        position: relative
+        z-index: 0
 
     & >.recent-post-info
       +maxWidth768()

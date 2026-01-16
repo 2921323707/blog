@@ -53,7 +53,7 @@
 - [ ] `card_tags.sort_order` - 标签排序
 - [ ] `card_archives.sort_order` - 归档排序
 - [ ] `card_webinfo.sort_order` - 网站信息排序
-- [x] `card_webinfo.runtime_date` - 网站运行时间
+- [ ] `card_webinfo.runtime_date` - 网站运行时间
 
 ### 右下角按钮
 - [ ] `rightside_bottom` - 右下角按钮距离底部距离
@@ -97,7 +97,7 @@
 - [ ] `ad.post` - 文章内广告
 
 ### 网站验证
-- [ ] `site_verification` - 搜索引擎验证（Google、百度等）
+- [x] `site_verification` - 搜索引擎验证（Google、百度等）- 已配置百度验证
 
 ### 美化效果
 - [ ] `beautify.title_prefix_icon` - 标题前缀图标
@@ -117,12 +117,4 @@
 
 ---
 
-## 建议优先配置
 
-1. **部署配置**：`deploy.type`（如果使用 Git 部署）
-2. **统计分析**：`google_analytics` 或 `baidu_analytics`
-3. **网站验证**：`site_verification`（SEO 优化）
-4. **打赏功能**：`reward`（如果需要）
-5. **文章编辑**：`post_edit.url`（如果需要）
-
-大部分未配置项都是可选功能，可以根据实际需求进行配置。
