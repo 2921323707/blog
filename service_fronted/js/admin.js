@@ -1,93 +1,95 @@
-// 全局错误处理 - 捕获并忽略主题脚本的错误
-window.addEventListener('error', function (e) {
-    // 如果是 page-events.js 或其他主题脚本的错误，忽略它
-    if (e.filename && (e.filename.includes('page-events') ||
-        e.filename.includes('main.js') ||
-        e.filename.includes('utils.js') ||
-        e.filename.includes('butterfly'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return true;
-    }
-    // 如果错误信息包含 length 相关的主题脚本错误，也忽略
-    if (e.message && (
-        e.message.includes('Cannot read properties of undefined') ||
-        (e.message.includes('length') && e.filename && e.filename.includes('.js'))
-    )) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return true;
-    }
-}, true);
-
-// 捕获未处理的 Promise 错误
-window.addEventListener('unhandledrejection', function (e) {
-    const reason = e.reason ? e.reason.toString() : '';
-    if (reason.includes('page-events') || 
-        reason.includes('Cannot read properties') ||
-        (reason.includes('length') && reason.includes('undefined'))) {
-        e.preventDefault();
-    }
-});
-
-// 使用 try-catch 包装可能出错的主题脚本事件处理
-// 在 DOMContentLoaded 之前设置，确保能捕获所有错误
-(function() {
-    const originalDispatchEvent = EventTarget.prototype.dispatchEvent;
-    EventTarget.prototype.dispatchEvent = function(event) {
-        try {
-            return originalDispatchEvent.call(this, event);
-        } catch (error) {
-            // 如果是主题脚本相关的错误，静默忽略
-            if (error && error.message && (
-                error.message.includes('Cannot read properties') ||
-                error.message.includes('length') ||
-                (error.stack && error.stack.includes('page-events'))
-            )) {
-                return false; // 返回 false 表示事件被阻止
-            }
-            // 其他错误正常抛出
-            throw error;
-        }
-    };
-})();
-
 // 自动检测 API 基础路径
 const API_BASE = window.location.origin.includes('5000')
     ? `${window.location.protocol}//${window.location.host}/api`
     : 'http://localhost:5000/api';
 
+// 调试：确认 JavaScript 文件已加载
+console.log('📦 admin.js 文件已加载');
+
+// 全局状态
 let tags = [];
 let categories = [];
 let uploadedImages = [];
 let coverImageUrl = null;
 
-// 设置默认日期为今天
-document.getElementById('date').valueAsDate = new Date();
+// 主题切换
+function initTheme() {
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('admin-theme') || 'light';
 
-// 标签输入
-const tagInput = document.getElementById('tagInput');
-const tagsContainer = document.getElementById('tagsContainer');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
 
-tagInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        const value = tagInput.value.trim();
-        if (value && !tags.includes(value)) {
-            tags.push(value);
-            updateTagsDisplay();
-            tagInput.value = '';
-        }
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('admin-theme', newTheme);
+        updateThemeIcon(newTheme);
+    });
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.querySelector('#themeToggle i');
+    icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOMContentLoaded 事件触发，开始初始化...');
+    try {
+        initTheme();
+        initForm();
+        initTags();
+        initCategories();
+        initImageUpload();
+        initCoverUpload();
+        initPreview();
+        initHelp();
+        initImportMd();
+        console.log('✅ 所有初始化函数执行完成');
+    } catch (error) {
+        console.error('❌ 初始化过程中发生错误:', error);
     }
 });
 
+// 表单初始化
+function initForm() {
+    // 设置默认日期为今天
+    const dateInput = document.getElementById('date');
+    if (dateInput) {
+        dateInput.valueAsDate = new Date();
+    }
+
+    // 表单提交
+    const form = document.getElementById('postForm');
+    form.addEventListener('submit', handleSubmit);
+}
+
+// 标签管理
+function initTags() {
+    const tagInput = document.getElementById('tagInput');
+    const tagsContainer = document.getElementById('tagsContainer');
+
+    tagInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = tagInput.value.trim();
+            if (value && !tags.includes(value)) {
+                tags.push(value);
+                updateTagsDisplay();
+                tagInput.value = '';
+            }
+        }
+    });
+}
+
 function updateTagsDisplay() {
+    const tagsContainer = document.getElementById('tagsContainer');
     tagsContainer.innerHTML = tags.map(tag => `
         <span class="tag">
             ${tag}
-            <span class="remove" data-tag="${tag}">×</span>
+            <span class="remove" data-tag="${tag}" title="删除标签">×</span>
         </span>
     `).join('');
 
@@ -100,27 +102,30 @@ function updateTagsDisplay() {
     });
 }
 
-// 分类输入
-const categoryInput = document.getElementById('categoryInput');
-const categoriesContainer = document.getElementById('categoriesContainer');
+// 分类管理
+function initCategories() {
+    const categoryInput = document.getElementById('categoryInput');
+    const categoriesContainer = document.getElementById('categoriesContainer');
 
-categoryInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        const value = categoryInput.value.trim();
-        if (value && !categories.includes(value)) {
-            categories.push(value);
-            updateCategoriesDisplay();
-            categoryInput.value = '';
+    categoryInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = categoryInput.value.trim();
+            if (value && !categories.includes(value)) {
+                categories.push(value);
+                updateCategoriesDisplay();
+                categoryInput.value = '';
+            }
         }
-    }
-});
+    });
+}
 
 function updateCategoriesDisplay() {
+    const categoriesContainer = document.getElementById('categoriesContainer');
     categoriesContainer.innerHTML = categories.map(cat => `
         <span class="category">
             ${cat}
-            <span class="remove" data-category="${cat}">×</span>
+            <span class="remove" data-category="${cat}" title="删除分类">×</span>
         </span>
     `).join('');
 
@@ -134,40 +139,45 @@ function updateCategoriesDisplay() {
 }
 
 // 封面图片上传
-const coverUploadArea = document.getElementById('coverUploadArea');
-const coverFileInput = document.getElementById('coverFileInput');
-const coverPreview = document.getElementById('coverPreview');
+function initCoverUpload() {
+    const coverUploadArea = document.getElementById('coverUploadArea');
+    const coverFileInput = document.getElementById('coverFileInput');
+    const coverPreview = document.getElementById('coverPreview');
 
-coverUploadArea.addEventListener('click', () => coverFileInput.click());
+    coverUploadArea.addEventListener('click', () => coverFileInput.click());
 
-coverUploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    coverUploadArea.classList.add('dragover');
-});
+    coverUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        coverUploadArea.classList.add('dragover');
+    });
 
-coverUploadArea.addEventListener('dragleave', () => {
-    coverUploadArea.classList.remove('dragover');
-});
+    coverUploadArea.addEventListener('dragleave', () => {
+        coverUploadArea.classList.remove('dragover');
+    });
 
-coverUploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    coverUploadArea.classList.remove('dragover');
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-    if (files.length > 0) {
-        handleCoverUpload(files[0]);
-    }
-});
+    coverUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        coverUploadArea.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length > 0) {
+            handleCoverUpload(files[0]);
+        }
+    });
 
-coverFileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        handleCoverUpload(e.target.files[0]);
-    }
-});
+    coverFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleCoverUpload(e.target.files[0]);
+        }
+    });
+}
 
 async function handleCoverUpload(file) {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('type', 'cover');  // 指定为封面图片
+    formData.append('type', 'cover');
+
+    const coverPreview = document.getElementById('coverPreview');
+    coverPreview.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--color-text-secondary);">上传中...</div>';
 
     try {
         const response = await fetch(`${API_BASE}/posts/upload-image`, {
@@ -179,60 +189,64 @@ async function handleCoverUpload(file) {
 
         if (result.errno === 0) {
             coverImageUrl = result.data.url;
-            
+
             // 显示预览
-            const imageSrc = `http://localhost:5000${coverImageUrl}`;
+            const imageSrc = `${window.location.origin}${coverImageUrl}`;
             const coverItem = document.createElement('div');
             coverItem.className = 'cover-preview-item';
             coverItem.innerHTML = `
-                <img src="${imageSrc}" alt="封面预览">
-                <button type="button" class="remove">×</button>
+                <img src="${imageSrc}" alt="封面预览" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'400\' height=\'200\'/%3E%3Ctext fill=\'%23999\' font-family=\'sans-serif\' font-size=\'18\' dy=\'10.5\' font-weight=\'bold\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\'%3E图片加载失败%3C/text%3E%3C/svg%3E'">
+                <button type="button" class="remove" title="删除封面">×</button>
             `;
             coverPreview.innerHTML = '';
             coverPreview.appendChild(coverItem);
-            
+
             // 添加删除按钮事件
             coverItem.querySelector('.remove').addEventListener('click', removeCover);
         } else {
-            alert('封面图片上传失败: ' + result.errmsg);
+            coverPreview.innerHTML = '';
+            showStatus(`封面图片上传失败: ${result.errmsg}`, 'error');
         }
     } catch (error) {
-        alert('封面图片上传失败: ' + error.message);
+        coverPreview.innerHTML = '';
+        showStatus(`封面图片上传失败: ${error.message}`, 'error');
     }
 }
 
 function removeCover() {
     coverImageUrl = null;
-    coverPreview.innerHTML = '';
-    coverFileInput.value = '';
+    document.getElementById('coverPreview').innerHTML = '';
+    document.getElementById('coverFileInput').value = '';
 }
 
 // 图片上传
-const uploadArea = document.getElementById('uploadArea');
-const fileInput = document.getElementById('fileInput');
-const imagePreview = document.getElementById('imagePreview');
+function initImageUpload() {
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const imagePreview = document.getElementById('imagePreview');
 
-uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('click', () => fileInput.click());
 
-uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadArea.classList.add('dragover');
-});
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
 
-uploadArea.addEventListener('dragleave', () => {
-    uploadArea.classList.remove('dragover');
-});
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
 
-uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-    handleFiles(files);
-});
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        handleFiles(files);
+    });
 
-fileInput.addEventListener('change', (e) => {
-    handleFiles(Array.from(e.target.files));
-});
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(Array.from(e.target.files));
+    });
+}
 
 async function handleFiles(files) {
     for (const file of files) {
@@ -243,7 +257,15 @@ async function handleFiles(files) {
 async function uploadImage(file) {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('type', 'content');  // 指定为内容图片
+    formData.append('type', 'content');
+
+    const imagePreview = document.getElementById('imagePreview');
+
+    // 显示上传中占位符
+    const loadingItem = document.createElement('div');
+    loadingItem.className = 'image-item';
+    loadingItem.innerHTML = '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary);">上传中...</div>';
+    imagePreview.appendChild(loadingItem);
 
     try {
         const response = await fetch(`${API_BASE}/posts/upload-image`, {
@@ -257,39 +279,48 @@ async function uploadImage(file) {
             const imageUrl = result.data.url;
             uploadedImages.push(imageUrl);
 
+            // 移除加载占位符
+            loadingItem.remove();
+
             // 显示预览
             const imageItem = document.createElement('div');
             imageItem.className = 'image-item';
-            // 图片路径已经是 /img/xxx，直接从后端访问
-            const imageSrc = `http://localhost:5000${imageUrl}`;
+            const imageSrc = `${window.location.origin}${imageUrl}`;
             imageItem.innerHTML = `
-                <img src="${imageSrc}" alt="预览">
-                <button type="button" class="remove" onclick="this.parentElement.remove()">×</button>
+                <img src="${imageSrc}" alt="预览" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\'%3E%3Crect fill=\'%23ddd\' width=\'120\' height=\'120\'/%3E%3Ctext fill=\'%23999\' font-family=\'sans-serif\' font-size=\'12\' dy=\'10.5\' font-weight=\'bold\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\'%3E加载失败%3C/text%3E%3C/svg%3E'">
+                <button type="button" class="remove" title="删除图片">×</button>
             `;
             imagePreview.appendChild(imageItem);
+
+            // 添加删除按钮事件
+            imageItem.querySelector('.remove').addEventListener('click', () => {
+                imageItem.remove();
+                uploadedImages = uploadedImages.filter(url => url !== imageUrl);
+            });
 
             // 自动插入到文章末尾
             const content = document.getElementById('content');
             const imageMarkdown = `\n\n![${file.name}](${imageUrl})\n`;
             content.value += imageMarkdown;
         } else {
-            alert('上传失败: ' + result.errmsg);
+            loadingItem.remove();
+            showStatus(`图片上传失败: ${result.errmsg}`, 'error');
         }
     } catch (error) {
-        alert('上传失败: ' + error.message);
+        loadingItem.remove();
+        showStatus(`图片上传失败: ${error.message}`, 'error');
     }
 }
 
 // 表单提交
-document.getElementById('postForm').addEventListener('submit', async (e) => {
+async function handleSubmit(e) {
     e.preventDefault();
 
     const submitBtn = document.getElementById('submitBtn');
     const status = document.getElementById('status');
 
     submitBtn.disabled = true;
-    status.className = 'status';
-    status.textContent = '正在提交...';
+    showStatus('正在提交...', 'info');
 
     const data = {
         title: document.getElementById('title').value.trim(),
@@ -316,8 +347,7 @@ document.getElementById('postForm').addEventListener('submit', async (e) => {
             if (result.warning) {
                 message += `\n⚠️ ${result.warning}`;
             }
-            status.className = 'status success';
-            status.textContent = message;
+            showStatus(message, 'success');
 
             // 清空表单
             setTimeout(() => {
@@ -328,84 +358,375 @@ document.getElementById('postForm').addEventListener('submit', async (e) => {
                 coverImageUrl = null;
                 updateTagsDisplay();
                 updateCategoriesDisplay();
-                imagePreview.innerHTML = '';
-                coverPreview.innerHTML = '';
+                document.getElementById('imagePreview').innerHTML = '';
+                document.getElementById('coverPreview').innerHTML = '';
                 document.getElementById('date').valueAsDate = new Date();
                 status.className = 'status';
+                status.textContent = '';
             }, 5000);
         } else {
-            status.className = 'status error';
-            let errorMsg = `❌ 提交失败: ${result.errmsg || '未知错误'}`;
-            if (result.detail) {
-                console.error('详细错误:', result.detail);
-            }
-            status.textContent = errorMsg;
+            showStatus(`❌ 提交失败: ${result.errmsg || '未知错误'}`, 'error');
         }
     } catch (error) {
-        status.className = 'status error';
-        status.textContent = `❌ 提交失败: ${error.message}`;
+        showStatus(`❌ 提交失败: ${error.message}`, 'error');
     } finally {
         submitBtn.disabled = false;
     }
-});
+}
+
+// 状态提示
+function showStatus(message, type = 'info') {
+    const status = document.getElementById('status');
+    status.className = `status ${type}`;
+    status.textContent = message;
+    status.style.display = 'block';
+}
 
 // 预览功能
-const previewBtn = document.getElementById('previewBtn');
-const previewModal = document.getElementById('previewModal');
-const closePreview = document.getElementById('closePreview');
-const previewContent = document.getElementById('previewContent');
+function initPreview() {
+    const previewBtn = document.getElementById('previewBtn');
+    const previewModal = document.getElementById('previewModal');
+    const closePreview = document.getElementById('closePreview');
+    const previewContent = document.getElementById('previewContent');
 
-// 配置 marked.js
-if (typeof marked !== 'undefined') {
-    marked.setOptions({
-        breaks: true, // 支持 GitHub 风格的换行
-        gfm: true, // 启用 GitHub 风格的 Markdown
-        sanitize: false, // 允许 HTML（用于预览）
+    // 配置 marked.js
+    if (typeof marked !== 'undefined') {
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false,
+        });
+    }
+
+    previewBtn.addEventListener('click', () => {
+        const content = document.getElementById('content').value;
+        const title = document.getElementById('title').value || '未命名文章';
+
+        if (content.trim()) {
+            // 渲染 Markdown 为 HTML
+            let html = '';
+            if (typeof marked !== 'undefined') {
+                html = marked.parse(content);
+            } else {
+                html = '<p style="color: var(--color-error);">⚠️ Markdown 渲染库未加载，请刷新页面重试。</p><pre>' +
+                    content.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                    '</pre>';
+            }
+
+            // 处理外部链接，使其在新标签页打开
+            html = html.replace(/<a href="(https?:\/\/[^"]+)"/g, '<a href="$1" target="_blank" rel="noopener noreferrer"');
+
+            // 显示预览
+            previewContent.innerHTML = `<h1>${escapeHtml(title)}</h1>\n${html}`;
+            previewModal.classList.add('show');
+        } else {
+            showStatus('请先输入文章内容', 'error');
+        }
+    });
+
+    // 关闭预览
+    closePreview.addEventListener('click', () => {
+        previewModal.classList.remove('show');
+    });
+
+    // 点击模态框外部关闭
+    previewModal.addEventListener('click', (e) => {
+        if (e.target === previewModal) {
+            previewModal.classList.remove('show');
+        }
+    });
+
+    // ESC 键关闭预览
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && previewModal.classList.contains('show')) {
+            previewModal.classList.remove('show');
+        }
+    });
+
+    // 工具栏预览按钮
+    const toolbarPreview = document.querySelector('[data-action="preview"]');
+    if (toolbarPreview) {
+        toolbarPreview.addEventListener('click', () => {
+            previewBtn.click();
+        });
+    }
+}
+
+// 帮助功能
+function initHelp() {
+    const helpModal = document.getElementById('helpModal');
+    const closeHelp = document.getElementById('closeHelp');
+    const toolbarHelp = document.querySelector('[data-action="help"]');
+
+    if (toolbarHelp) {
+        toolbarHelp.addEventListener('click', () => {
+            helpModal.classList.add('show');
+        });
+    }
+
+    closeHelp.addEventListener('click', () => {
+        helpModal.classList.remove('show');
+    });
+
+    helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
+            helpModal.classList.remove('show');
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && helpModal.classList.contains('show')) {
+            helpModal.classList.remove('show');
+        }
     });
 }
 
-previewBtn.addEventListener('click', () => {
-    const content = document.getElementById('content').value;
-    const title = document.getElementById('title').value || '未命名文章';
-    
-    if (content.trim()) {
-        // 渲染 Markdown 为 HTML
-        let html = '';
-        if (typeof marked !== 'undefined') {
-            html = marked.parse(content);
-        } else {
-            // 如果 marked.js 未加载，显示提示
-            html = '<p style="color: #d32f2f;">⚠️ Markdown 渲染库未加载，请刷新页面重试。</p><pre>' + 
-                   content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
-                   '</pre>';
+// HTML 转义
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 导入 Markdown 文件功能
+function initImportMd() {
+    const importBtn = document.getElementById('importMdBtn');
+    const importInput = document.getElementById('importMdInput');
+
+    importBtn.addEventListener('click', () => {
+        importInput.click();
+    });
+
+    importInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleImportMd(file);
         }
-        
-        // 处理外部链接，使其在新标签页打开
-        html = html.replace(/<a href="(https?:\/\/[^"]+)"/g, '<a href="$1" target="_blank" rel="noopener noreferrer"');
-        
-        // 显示预览
-        previewContent.innerHTML = `<h1>${title}</h1>\n${html}`;
-        previewModal.classList.add('show');
+        // 清空 input，允许重复选择同一文件
+        e.target.value = '';
+    });
+}
+
+// 处理导入的 Markdown 文件
+function handleImportMd(file) {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            const content = e.target.result;
+            const parsed = parseMarkdownFile(content);
+
+            // 填充表单
+            if (parsed.title) {
+                document.getElementById('title').value = parsed.title;
+            }
+
+            if (parsed.date) {
+                // 转换日期格式 YYYY-MM-DD HH:mm:ss 或 YYYY-MM-DD 为 YYYY-MM-DD
+                const dateStr = parsed.date.split(' ')[0].split('T')[0];
+                document.getElementById('date').value = dateStr;
+            }
+
+            // 填充标签
+            if (parsed.tags && parsed.tags.length > 0) {
+                tags = Array.isArray(parsed.tags) ? [...parsed.tags] : [parsed.tags];
+                updateTagsDisplay();
+            }
+
+            // 填充分类
+            if (parsed.categories && parsed.categories.length > 0) {
+                categories = Array.isArray(parsed.categories) ? [...parsed.categories] : [parsed.categories];
+                updateCategoriesDisplay();
+            }
+
+            // 填充封面（如果有）
+            if (parsed.cover) {
+                coverImageUrl = parsed.cover;
+                // 显示封面预览
+                const coverPreview = document.getElementById('coverPreview');
+                const imageSrc = parsed.cover.startsWith('http')
+                    ? parsed.cover
+                    : `${window.location.origin}${parsed.cover}`;
+                const coverItem = document.createElement('div');
+                coverItem.className = 'cover-preview-item';
+                coverItem.innerHTML = `
+                    <img src="${imageSrc}" alt="封面预览" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'400\' height=\'200\'/%3E%3Ctext fill=\'%23999\' font-family=\'sans-serif\' font-size=\'18\' dy=\'10.5\' font-weight=\'bold\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\'%3E图片加载失败%3C/text%3E%3C/svg%3E'">
+                    <button type="button" class="remove" title="删除封面">×</button>
+                `;
+                coverPreview.innerHTML = '';
+                coverPreview.appendChild(coverItem);
+                coverItem.querySelector('.remove').addEventListener('click', removeCover);
+            }
+
+            // 填充内容
+            if (parsed.content) {
+                document.getElementById('content').value = parsed.content;
+            }
+
+            // 显示成功提示
+            showImportNotice(`✅ 成功导入文件: ${file.name}`, 'success');
+
+            // 滚动到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        } catch (error) {
+            console.error('导入文件错误:', error);
+            showImportNotice(`❌ 导入失败: ${error.message}`, 'error');
+        }
+    };
+
+    reader.onerror = () => {
+        showImportNotice('❌ 文件读取失败', 'error');
+    };
+
+    reader.readAsText(file, 'UTF-8');
+}
+
+// 解析 Markdown 文件（支持 front-matter）
+function parseMarkdownFile(content) {
+    const result = {
+        title: '',
+        date: '',
+        tags: [],
+        categories: [],
+        cover: '',
+        content: ''
+    };
+
+    // 检查是否有 front-matter（以 --- 开头）
+    if (content.trim().startsWith('---')) {
+        const parts = content.split('---');
+
+        // 至少需要 3 个部分：---、front-matter、内容
+        if (parts.length >= 3) {
+            const frontMatter = parts[1].trim();
+            result.content = parts.slice(2).join('---').trim();
+
+            // 解析 front-matter（YAML 格式）
+            const lines = frontMatter.split('\n');
+            let currentKey = '';
+            let currentValue = '';
+            let inList = false;
+            let listKey = '';
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+
+                // 跳过空行
+                if (!trimmed) continue;
+
+                // 检查是否是列表项（以 - 开头）
+                if (trimmed.startsWith('-')) {
+                    inList = true;
+                    const value = trimmed.substring(1).trim();
+                    if (listKey === 'tags') {
+                        result.tags.push(value);
+                    } else if (listKey === 'categories') {
+                        result.categories.push(value);
+                    }
+                    continue;
+                }
+
+                // 检查是否是键值对
+                if (trimmed.includes(':')) {
+                    // 如果之前有列表，结束列表
+                    if (inList) {
+                        inList = false;
+                        listKey = '';
+                    }
+
+                    const colonIndex = trimmed.indexOf(':');
+                    currentKey = trimmed.substring(0, colonIndex).trim();
+                    currentValue = trimmed.substring(colonIndex + 1).trim();
+
+                    // 移除引号
+                    if ((currentValue.startsWith('"') && currentValue.endsWith('"')) ||
+                        (currentValue.startsWith("'") && currentValue.endsWith("'"))) {
+                        currentValue = currentValue.slice(1, -1);
+                    }
+
+                    // 处理不同的键
+                    switch (currentKey) {
+                        case 'title':
+                            result.title = currentValue;
+                            break;
+                        case 'date':
+                            result.date = currentValue;
+                            break;
+                        case 'cover':
+                            result.cover = currentValue;
+                            break;
+                        case 'tags':
+                            if (currentValue) {
+                                // 可能是单值或列表开始
+                                if (currentValue.startsWith('[')) {
+                                    // 数组格式 [tag1, tag2]
+                                    try {
+                                        result.tags = JSON.parse(currentValue);
+                                    } catch {
+                                        result.tags = [currentValue];
+                                    }
+                                } else {
+                                    listKey = 'tags';
+                                    inList = true;
+                                    if (currentValue) {
+                                        result.tags.push(currentValue);
+                                    }
+                                }
+                            } else {
+                                listKey = 'tags';
+                                inList = true;
+                            }
+                            break;
+                        case 'categories':
+                            if (currentValue) {
+                                if (currentValue.startsWith('[')) {
+                                    try {
+                                        result.categories = JSON.parse(currentValue);
+                                    } catch {
+                                        result.categories = [currentValue];
+                                    }
+                                } else {
+                                    listKey = 'categories';
+                                    inList = true;
+                                    if (currentValue) {
+                                        result.categories.push(currentValue);
+                                    }
+                                }
+                            } else {
+                                listKey = 'categories';
+                                inList = true;
+                            }
+                            break;
+                    }
+                }
+            }
+        } else {
+            // 没有正确的前置元数据，整个内容作为正文
+            result.content = content.trim();
+        }
     } else {
-        alert('请先输入文章内容');
+        // 没有 front-matter，整个内容作为正文
+        result.content = content.trim();
     }
-});
 
-// 关闭预览
-closePreview.addEventListener('click', () => {
-    previewModal.classList.remove('show');
-});
+    return result;
+}
 
-// 点击模态框外部关闭
-previewModal.addEventListener('click', (e) => {
-    if (e.target === previewModal) {
-        previewModal.classList.remove('show');
+// 显示导入提示
+function showImportNotice(message, type = 'info') {
+    const notice = document.getElementById('importNotice');
+    const noticeText = document.getElementById('importNoticeText');
+
+    if (notice && noticeText) {
+        noticeText.textContent = message;
+        notice.className = `import-notice ${type}`;
+        notice.style.display = 'block';
+
+        // 3秒后自动隐藏
+        setTimeout(() => {
+            notice.style.display = 'none';
+        }, 3000);
     }
-});
+}
 
-// ESC 键关闭预览
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && previewModal.classList.contains('show')) {
-        previewModal.classList.remove('show');
-    }
-});
