@@ -34,8 +34,6 @@ header#page-header(class=`${headerClassName + isFixedClass}` style=bg_img)
     else if globalPageType === 'home'
       #site-info
         h1#site-title=config.title
-        #typing-quote
-          span#typing-text
         if theme.subtitle.enable
           - var loadSubJs = true
           #site-subtitle

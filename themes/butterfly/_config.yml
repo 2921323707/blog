@@ -144,18 +144,25 @@ post_meta:
 # The top_img settings of home page
 # default: top img - full screen, site info - middle
 # The position of site info, eg: 300px/300em/300rem/10%
-index_site_info_top:
+index_site_info_top: 40%
 # The height of top_img, eg: 300px/300em/300rem
-index_top_img_height:
+# index_top_img_height: 100vh
 
 # The subtitle on homepage
 subtitle:
-  enable: false
+  enable: true
   # Typewriter Effect
   effect: true
   # Customize typed.js
   # https://github.com/mattboldt/typed.js/#customization
   typed_option:
+    typeSpeed: 120
+    backSpeed: 90
+    startDelay: 300
+    backDelay: 500
+    loop: true
+    showCursor: true
+    cursorChar: '|'
   # Source - Call the third-party service API (Chinese only)
   # It will show the source first, then show the content of sub
   # Choose: false/1/2/3
@@ -166,6 +173,9 @@ subtitle:
   source: false
   # If you close the typewriter effect, the subtitle will only show the first line of sub
   sub:
+    - 分享技术与生活
+    - 记录学习与成长
+    - 探索代码的世界
 
 # Article layout on the homepage
 # 1: Cover on the left, info on the right
@@ -203,29 +213,28 @@ toc:
 post_copyright:
   enable: true
   decode: false
-  author_href:
+  author_href: https://github.com/2921323707
   license: CC BY-NC-SA 4.0
   license_url: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 # Sponsor/reward
 reward:
-  enable: false
-  text:
+  enable: true
+  text: buy me a coffee
   QR_code:
-    # - img: /img/wechat.jpg
-    #   link:
-    #   text: wechat
-    # - img: /img/alipay.jpg
-    #   link:
-    #   text: alipay
+    - img: /img/wechat.jpg
+      link:
+      text: 微信
 
 # Post edit
 # Easily browse and edit blog source code online.
 post_edit:
-  enable: false
+  enable: true
   # url: https://github.com/user-name/repo-name/edit/branch-name/subdirectory-name/
   # For example: https://github.com/jerryc127/butterfly.js.org/edit/main/source/
-  url:
+  # 请根据你的实际仓库信息修改以下URL
+  # 格式: https://github.com/2921323707/仓库名/edit/分支名/source/
+  url: https://github.com/2921323707/blog/edit/main/source/
 
 # Related Articles
 related_post:
@@ -439,8 +448,8 @@ wordcount:
 
 # Busuanzi count for PV / UV in site
 busuanzi:
-  site_uv: true
-  site_pv: true
+  site_uv: false
+  site_pv: false
   page_pv: true
 
 # --------------------------------------
@@ -682,6 +691,8 @@ tidio:
   public_key:
 
 # https://crisp.chat/en/
+# 注册 Crisp 后，在设置中找到 Website ID 并填入下方
+# 获取方式：登录 Crisp → Settings → Website Settings → Website ID
 crisp:
   website_id:
 
@@ -690,7 +701,8 @@ crisp:
 # --------------------------------------
 
 # https://tongji.baidu.com/web/welcome/login
-baidu_analytics:
+# 获取方式：登录百度统计 → 管理 → 代码获取 → 复制跟踪 ID（格式：一串字母数字组合，如 abc123def456）
+baidu_analytics: b1a0e5cce7e382280ff045d74dd36e7e
 
 # https://analytics.google.com/analytics/web/
 google_analytics: # 请在此处填写你的 Google Analytics 测量 ID（格式：G-XXXXXXXXXX）
@@ -752,7 +764,7 @@ site_verification:
   # - name: google-site-verification
   #   content: xxxxxx
   - name: baidu-site-verification
-    content: codeva-o8JoOlDMUU
+    content: codeva-YuBvq7e7Tf
 
 # --------------------------------------
 # Beautify / Effect
@@ -790,8 +802,8 @@ theme_color:
 # 分类和标签页的用户界面设置
 # 选择: index - 与首页 UI 相同 / default - 与归档页 UI 相同
 # 留空或设置为 index
-category_ui:
-tag_ui:
+category_ui: index
+tag_ui: index
 
 # UI 元素的圆角
 rounded_corners_ui: true
@@ -812,6 +824,11 @@ preloader:
   # 2. pace (进度条)
   source: 1
   # pace 主题（参见 https://codebyzach.github.io/pace/）
+  # 常用的 Pace 主题 URL 示例：
+  # - https://cdn.jsdelivr.net/npm/pace-js@1.2.4/themes/blue/pace-theme-minimal.css
+  # - https://cdn.jsdelivr.net/npm/pace-js@1.2.4/themes/pink/pace-theme-minimal.css
+  # - https://cdn.jsdelivr.net/npm/pace-js@1.2.4/themes/red/pace-theme-minimal.css
+  # 留空则使用默认主题
   pace_css_url:
 
 # 页面过渡
@@ -826,9 +843,14 @@ beautify:
   # 指定要美化的字段（site 或 post）
   field: post
   # 指定用作标题前缀的图标，例如 '\f0c1'
-  title_prefix_icon:
+  # 常用 Font Awesome 图标：
+  # - '\f0c1' (link) - 链接图标
+  # - '\f15b' (file-text) - 文档图标
+  # - '\f1c9' (code) - 代码图标
+  # - '\f02d' (book) - 书籍图标
+  title_prefix_icon: '\f0c1'
   # 指定标题前缀图标的颜色，例如 '#F47466'
-  title_prefix_icon_color:
+  title_prefix_icon_color: '#49B1F5'
 
 # 全局字体设置
 # 除非您知道它们的工作原理，否则不要修改以下设置

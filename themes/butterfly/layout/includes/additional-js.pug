@@ -24,51 +24,6 @@ div
     if loadSubJs
       include ./third-party/subtitle.pug
 
-    //- Typing effect for quotes
-    script.
-      (function() {
-        const initTyping = () => {
-          const typingElement = document.getElementById('typing-text');
-          if (!typingElement) return;
-          
-          const quotes = [
-            '有志者，事竟成，破釜沉舟，百二秦关终属楚！',
-            '苦心人，天不负，卧薪尝胆，三千越甲可吞吴！',
-            '天行健，君子以自强不息！',
-            '地势坤，君子以厚德载物！',
-            '路漫漫其修远兮，吾将上下而求索！',
-            '宝剑锋从磨砺出，梅花香自苦寒来！',
-            '不飞则已，一飞冲天；不鸣则已，一鸣惊人！',
-            '千磨万击还坚劲，任尔东西南北风！',
-            '山重水复疑无路，柳暗花明又一村！',
-            '会当凌绝顶，一览众山小！'
-          ];
-          
-          if (typeof Typed !== 'undefined') {
-            new Typed('#typing-text', {
-              strings: quotes,
-              typeSpeed: 80,
-              backSpeed: 50,
-              backDelay: 2000,
-              loop: true,
-              showCursor: true,
-              cursorChar: '|'
-            });
-          }
-        };
-        
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', initTyping);
-        } else {
-          initTyping();
-        }
-        
-        // Support for pjax
-        if (typeof pjax !== 'undefined') {
-          document.addEventListener('pjax:complete', initTyping);
-        }
-      })();
-
     include ./third-party/math/index.pug
     include ./third-party/abcjs/index.pug
 

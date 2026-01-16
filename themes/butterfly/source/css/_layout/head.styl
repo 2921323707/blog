@@ -19,7 +19,7 @@
   &.full_page
     height: $index_top_img_height
     background-attachment: fixed
-    background-image: url(/img/index.png) !important
+    background-image: url(/img/bc.jpg) !important
 
     #site-info
       position: absolute
@@ -43,41 +43,6 @@
 
     +minWidth768()
       font-size: 2.85em
-
-  #typing-quote
-    margin: 20px auto 0
-    text-align: center
-    min-height: 40px
-
-    +maxWidth768()
-      margin: 15px auto 0
-      min-height: 35px
-
-    #typing-text
-      display: inline-block
-      color: var(--white)
-      font-size: 1.2em
-      font-weight: 500
-      text-shadow: 2px 2px 6px rgba(0, 0, 0, .3)
-      letter-spacing: 1px
-
-      +minWidth768()
-        font-size: 1.5em
-
-      +maxWidth768()
-        font-size: 1.1em
-
-      &::after
-        content: '|'
-        color: var(--white)
-        animation: blink 1s infinite
-        font-weight: 300
-
-  @keyframes blink
-    0%, 50%
-      opacity: 1
-    51%, 100%
-      opacity: 0
 
   #site-subtitle
     color: var(--light-grey)

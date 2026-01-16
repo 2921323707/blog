@@ -31,45 +31,6 @@
 - [ ] `category_per_img` - 每个分类的背景图
 - [ ] `background` - 网站背景（颜色或图片）
 
-### 首页设置
-- [ ] `index_site_info_top` - 首页站点信息位置
-- [ ] `index_top_img_height` - 首页顶部图片高度
-- [ ] `subtitle.typed_option` - 打字机效果自定义选项
-- [ ] `subtitle.sub` - 副标题内容
-
-### 文章设置
-- [ ] `post_copyright.author_href` - 作者链接
-- [ ] `reward.text` - 打赏提示文字
-- [ ] `reward.QR_code` - 打赏二维码
-- [ ] `post_edit.url` - 文章编辑链接（GitHub 等）
-
-### 页脚设置
-- [ ] `footer.nav` - 页脚导航链接
-
-### 侧边栏设置
-- [ ] `card_recent_post.sort_order` - 最近文章排序
-- [ ] `card_newest_comments.sort_order` - 最新评论排序
-- [ ] `card_categories.sort_order` - 分类排序
-- [ ] `card_tags.sort_order` - 标签排序
-- [ ] `card_archives.sort_order` - 归档排序
-- [ ] `card_webinfo.sort_order` - 网站信息排序
-
-### 右下角按钮
-- [ ] `rightside_bottom` - 右下角按钮距离底部距离
-
-### 字体设置
-- [ ] `font.global_font_size` - 全局字体大小
-- [ ] `font.code_font_size` - 代码字体大小
-- [ ] `font.code_font_family` - 代码字体族
-- [ ] `blog_title_font.font_link` - 标题字体链接
-- [ ] `hr_icon.icon` - 分割线图标
-- [ ] `hr_icon.icon_top` - 分割线图标位置
-
-### 搜索配置
-- [ ] `local_search.CDN` - 本地搜索 CDN
-- [ ] `algolia_search` - Algolia 搜索（完整配置）
-- [ ] `docsearch` - Docsearch（完整配置）
-
 
 ### 聊天服务
 - [ ] `chat.use` - 聊天服务选择
@@ -77,8 +38,9 @@
 - [ ] `tidio.public_key` - Tidio 公钥
 - [ ] `crisp.website_id` - Crisp 网站 ID
 
+
 ### 统计分析
-- [ ] `baidu_analytics` - 百度统计
+- [x] `baidu_analytics` - 百度统计（已配置完成）
 - [ ] `google_analytics` - Google Analytics（有注释提示）
 - [ ] `cloudflare_analytics` - Cloudflare 分析
 - [ ] `microsoft_clarity` - Microsoft Clarity
@@ -92,12 +54,6 @@
 - [ ] `ad.post` - 文章内广告
 
 
-### 美化效果
-- [ ] `beautify.title_prefix_icon` - 标题前缀图标
-- [ ] `beautify.title_prefix_icon_color` - 标题前缀图标颜色
-- [ ] `category_ui` - 分类页 UI 样式
-- [ ] `tag_ui` - 标签页 UI 样式
-- [ ] `preloader.pace_css_url` - Pace 加载动画主题
 
 ### 其他功能
 - [ ] `pjax.exclude` - Pjax 排除页面
