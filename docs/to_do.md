@@ -53,14 +53,9 @@
 - [ ] `card_tags.sort_order` - 标签排序
 - [ ] `card_archives.sort_order` - 归档排序
 - [ ] `card_webinfo.sort_order` - 网站信息排序
-- [ ] `card_webinfo.runtime_date` - 网站运行时间
 
 ### 右下角按钮
 - [ ] `rightside_bottom` - 右下角按钮距离底部距离
-
-### 深色模式
-- [ ] `darkmode.start` - 自动切换深色模式开始时间
-- [ ] `darkmode.end` - 自动切换深色模式结束时间
 
 ### 字体设置
 - [ ] `font.global_font_size` - 全局字体大小
@@ -96,8 +91,6 @@
 - [ ] `ad.aside` - 侧边栏广告
 - [ ] `ad.post` - 文章内广告
 
-### 网站验证
-- [x] `site_verification` - 搜索引擎验证（Google、百度等）- 已配置百度验证
 
 ### 美化效果
 - [ ] `beautify.title_prefix_icon` - 标题前缀图标
@@ -108,7 +101,6 @@
 
 ### 其他功能
 - [ ] `pjax.exclude` - Pjax 排除页面
-- [ ] `lazyload.placeholder` - 懒加载占位图
 - [ ] `pwa` - PWA 配置（完整）
 - [ ] `Open_Graph_meta.option` - Open Graph 元数据选项
 - [ ] `structured_data.alternate_name` - 结构化数据备用名称
