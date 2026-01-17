@@ -779,7 +779,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const $runtimeCount = document.getElementById('runtimeshow')
     if ($runtimeCount) {
       const publishDate = $runtimeCount.getAttribute('data-publishDate')
-      $runtimeCount.textContent = `${btf.diffDate(publishDate)} ${GLOBAL_CONFIG.runtime}`
+      
+      // 更新函数
+      const updateRuntime = () => {
+        $runtimeCount.textContent = btf.diffDateWithSeconds(publishDate)
+      }
+      
+      // 立即更新一次
+      updateRuntime()
+      
+      // 每秒更新一次
+      setInterval(updateRuntime, 1000)
     }
   }
 

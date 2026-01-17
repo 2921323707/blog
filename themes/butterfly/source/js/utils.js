@@ -102,6 +102,21 @@
       return dateSuffix.just
     },
 
+    diffDateWithSeconds: (inputDate) => {
+      const dateNow = new Date()
+      const datePost = new Date(inputDate)
+      const diffMs = dateNow - datePost
+      const totalSeconds = Math.floor(diffMs / 1000)
+      const seconds = totalSeconds % 60
+      const totalMinutes = Math.floor(totalSeconds / 60)
+      const minutes = totalMinutes % 60
+      const totalHours = Math.floor(totalMinutes / 60)
+      const hours = totalHours % 24
+      const days = Math.floor(totalHours / 24)
+
+      return `${days} D ${hours} H ${minutes} M ${seconds} S`
+    },
+
     loadComment: (dom, callback) => {
       if ('IntersectionObserver' in window) {
         const observerItem = new IntersectionObserver(entries => {
