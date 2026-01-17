@@ -28,47 +28,4 @@ jobs:
         script_stop: true  # 遇到错误时停止执行
         # Windows 服务器使用 PowerShell 执行命令
         script: |
-          $ErrorActionPreference = "Stop"
-          
-          Write-Host "========== 开始部署 ==========" -ForegroundColor Green
-          Write-Host "时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
-          
-          # 进入项目目录
-          $BLOG_DIR = "${{ secrets.BLOG_DIR || 'C:\\Users\\Administrator\\Desktop\\blog' }}"
-          
-          if (-not (Test-Path $BLOG_DIR)) {
-            Write-Host "错误: 博客目录不存在: $BLOG_DIR" -ForegroundColor Red
-            exit 1
-          }
-          
-          Set-Location $BLOG_DIR
-          Write-Host "当前目录: $(Get-Location)" -ForegroundColor Cyan
-          
-          # 拉取最新代码
-          Write-Host "-------- 拉取最新代码 --------" -ForegroundColor Yellow
-          git pull origin main
-          
-          # 安装依赖（如果需要）
-          if (Test-Path "package.json") {
-            Write-Host "-------- 安装 npm 依赖 --------" -ForegroundColor Yellow
-            npm install
-          }
-          
-          # 生成 Hexo 静态文件
-          Write-Host "-------- 生成静态文件 --------" -ForegroundColor Yellow
-          npx hexo clean
-          npx hexo generate
-          
-          # Nginx 直接指向 public 目录，无需复制文件
-          # 可选：重新加载 Nginx 配置以确保使用新文件
-          $NGINX_PATH = "${{ secrets.NGINX_PATH || 'C:\\Users\\Administrator\\Downloads\\nginx-1.28.1\\nginx.exe' }}"
-          if (Test-Path $NGINX_PATH) {
-            Write-Host "-------- 重新加载 Nginx --------" -ForegroundColor Yellow
-            & $NGINX_PATH -s reload
-          } else {
-            Write-Host "提示: Nginx 路径未找到 ($NGINX_PATH)，跳过重载" -ForegroundColor Yellow
-            Write-Host "如需重载 Nginx，请在 GitHub Secrets 中配置 NGINX_PATH" -ForegroundColor Yellow
-          }
-          
-          Write-Host "========== 部署完成！==========" -ForegroundColor Green
-          Write-Host "完成时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
+          powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; Write-Host '========== 开始部署 ==========' -ForegroundColor Green; Write-Host \"时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')\" -ForegroundColor Cyan; $BLOG_DIR = '${{ secrets.BLOG_DIR || 'C:\\Users\\Administrator\\Desktop\\blog' }}'; if (-not (Test-Path $BLOG_DIR)) { Write-Host \"错误: 博客目录不存在: $BLOG_DIR\" -ForegroundColor Red; exit 1 }; Set-Location $BLOG_DIR; Write-Host \"当前目录: $(Get-Location)\" -ForegroundColor Cyan; Write-Host '-------- 拉取最新代码 --------' -ForegroundColor Yellow; git pull origin main; if (Test-Path 'package.json') { Write-Host '-------- 安装 npm 依赖 --------' -ForegroundColor Yellow; npm install }; Write-Host '-------- 生成静态文件 --------' -ForegroundColor Yellow; npx hexo clean; npx hexo generate; $NGINX_PATH = '${{ secrets.NGINX_PATH || 'C:\\Users\\Administrator\\Downloads\\nginx-1.28.1\\nginx.exe' }}'; if (Test-Path $NGINX_PATH) { Write-Host '-------- 重新加载 Nginx --------' -ForegroundColor Yellow; & $NGINX_PATH -s reload } else { Write-Host \"提示: Nginx 路径未找到 ($NGINX_PATH)，跳过重载\" -ForegroundColor Yellow }; Write-Host '========== 部署完成！==========' -ForegroundColor Green; Write-Host \"完成时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')\" -ForegroundColor Cyan"
