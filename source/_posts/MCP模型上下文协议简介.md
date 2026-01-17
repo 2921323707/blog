@@ -13,7 +13,7 @@ categories:
 
 MCP（Model Context Protocol）是一个开放协议，用于AI模型与外部工具、数据源和服务的标准化交互。
 
-## 什么是MCP？
+## 什么是MCP？？？
 
 MCP定义了AI助手如何安全、高效地访问外部资源的标准方式。它让AI模型能够：
 
