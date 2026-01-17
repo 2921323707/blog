@@ -13,7 +13,7 @@ categories:
 
 Skills（技能）是AI领域的最新流行概念，指的是AI系统可以学习和执行的具体能力或任务。
 
-## 什么是Skills
+## 什么是Skills？
 
 Skills是AI代理（Agent）可以掌握的独立功能单元，类似于人类的技能。每个Skill代表一个特定的能力，如：
 
