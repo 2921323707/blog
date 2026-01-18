@@ -16,7 +16,7 @@ CORS(app, resources={
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
-
+#
 # 初始化数据库
 with app.app_context():
     db.create_all()
