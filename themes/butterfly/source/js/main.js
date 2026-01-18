@@ -801,9 +801,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!$lastPushDateItem) return
 
     // 优先从后端API获取，如果失败则使用data属性
-    const API_BASE = window.COMMENTS_API || window.COMMENTS_CDN_API || (window.location.protocol === 'https:'
-      ? 'https://localhost:5000/api'
-      : 'http://localhost:5000/api')
+    // 优先使用已设置的API地址，否则根据环境判断
+    let API_BASE = window.COMMENTS_API || window.COMMENTS_CDN_API
+    if (!API_BASE) {
+      // 开发环境（4000端口或localhost）使用绝对路径指向5000端口
+      if (window.location.port === '4000' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+        API_BASE = window.location.protocol + '//' + window.location.hostname + ':5000/api'
+      } else {
+        // 生产环境使用相对路径（通过nginx代理）
+        API_BASE = '/api'
+      }
+    }
 
     fetch(`${API_BASE}/stats`)
       .then(res => res.json())

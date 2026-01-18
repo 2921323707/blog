@@ -1,9 +1,16 @@
 (function () {
-    // API地址配置：优先使用window.COMMENTS_API，其次使用window.COMMENTS_CDN_API，最后使用默认值
+    // API地址配置：优先使用window.COMMENTS_API，其次使用window.COMMENTS_CDN_API，最后根据环境判断
     // 支持通过CDN访问后端API
-    const API_BASE = window.COMMENTS_API || window.COMMENTS_CDN_API || (window.location.protocol === 'https:'
-        ? 'https://localhost:5000/api'
-        : 'http://localhost:5000/api');
+    let API_BASE = window.COMMENTS_API || window.COMMENTS_CDN_API;
+    if (!API_BASE) {
+        // 开发环境（4000端口或localhost）使用绝对路径指向5000端口
+        if (window.location.port === '4000' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+            API_BASE = window.location.protocol + '//' + window.location.hostname + ':5000/api';
+        } else {
+            // 生产环境使用相对路径（通过nginx代理）
+            API_BASE = '/api';
+        }
+    }
 
     // Emoji数据（常用表情）
     const EMOJI_DATA = {
