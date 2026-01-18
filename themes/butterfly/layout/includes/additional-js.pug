@@ -40,6 +40,7 @@ div
 
   != partial("includes/third-party/effect", {}, { cache: true })
   != partial("includes/third-party/chat/index", {}, { cache: true })
+  != partial("includes/third-party/ai-chat/index", {}, { cache: true })
 
   if theme.aplayerInject && theme.aplayerInject.enable
     if theme.pjax.enable || theme.aplayerInject.per_page || page.aplayer

@@ -1,0 +1,18 @@
+//- AI Chat (MVP) - custom modal + mask + script
+#ai-chat
+  .ai-chat-dialog#ai-chat-dialog
+    nav.ai-chat-nav
+      span.ai-chat-title 看板娘
+      button.ai-chat-close-button#ai-chat-close(type="button" title="关闭")
+        i.fas.fa-times
+    .ai-chat-body
+      .ai-chat-messages#ai-chat-messages
+      form.ai-chat-form#ai-chat-form
+        input.ai-chat-input#ai-chat-input(type="text" placeholder="问我关于博客内容的问题…" autocomplete="off")
+        button.ai-chat-send#ai-chat-send(type="submit" title="发送")
+          i.fas.fa-paper-plane
+
+  #ai-chat-mask
+
+script(src=url_for('/js/ai-chat.js') data-pjax)
+

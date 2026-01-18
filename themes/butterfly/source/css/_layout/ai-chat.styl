@@ -1,0 +1,125 @@
+// AI Chat modal (MVP)
+
+#ai-chat-dialog
+  position: fixed
+  top: 10%
+  left: 50%
+  z-index: 1001
+  display: none
+  margin-left: -260px
+  padding: 16px
+  width: 520px
+  background: var(--card-bg)
+  addBorderRadius(10)
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .2)
+
+  +maxWidth768()
+    top: 0
+    left: 0
+    margin: 0
+    width: 100%
+    height: 100%
+    border-radius: 0
+
+  .ai-chat-nav
+    display: flex
+    justify-content: space-between
+    align-items: center
+    margin-bottom: 12px
+    color: var(--text-color)
+    font-size: 1.2em
+
+    .ai-chat-title
+      font-weight: 600
+
+    .ai-chat-close-button
+      color: var(--text-color)
+      opacity: .7
+      transition: all .2s ease
+
+      &:hover
+        opacity: 1
+
+  .ai-chat-body
+    display: flex
+    flex-direction: column
+    gap: 10px
+    height: calc(80vh - 80px)
+
+    +maxWidth768()
+      height: calc(100vh - 80px)
+
+  .ai-chat-messages
+    flex: 1
+    overflow-y: auto
+    padding: 6px
+    background: var(--body-bg)
+    addBorderRadius(10)
+
+  .ai-chat-form
+    display: flex
+    gap: 8px
+    align-items: center
+
+  .ai-chat-input
+    flex: 1
+    height: 38px
+    padding: 0 12px
+    border: 1px solid var(--border-color)
+    background: var(--card-bg)
+    color: var(--text-color)
+    addBorderRadius(10)
+    outline: none
+
+    &:focus
+      border-color: var(--theme-color)
+
+  .ai-chat-send
+    width: 42px
+    height: 38px
+    display: inline-flex
+    justify-content: center
+    align-items: center
+    background: var(--btn-bg)
+    color: var(--btn-color)
+    addBorderRadius(10)
+    @extend .btn-effects
+
+    &:hover
+      background: var(--btn-hover-color)
+
+// message bubbles
+.ai-chat-msg
+  display: flex
+  margin: 8px 0
+
+  .ai-chat-bubble
+    max-width: 85%
+    padding: 10px 12px
+    line-height: 1.6
+    white-space: pre-wrap
+    word-break: break-word
+    border: 1px solid var(--border-color)
+    background: var(--card-bg)
+    color: var(--text-color)
+    addBorderRadius(12)
+
+.ai-chat-msg--user
+  justify-content: flex-end
+
+  .ai-chat-bubble
+    border-color: rgba($theme-color, .25)
+
+.ai-chat-msg--bot
+  justify-content: flex-start
+
+#ai-chat-mask
+  position: fixed
+  top: 0
+  right: 0
+  bottom: 0
+  left: 0
+  z-index: 1000
+  display: none
+  background: rgba($dark-black, .6)
+
