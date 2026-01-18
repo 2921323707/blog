@@ -1,7 +1,17 @@
 (() => {
-  const API_BASE = window.location.origin.includes('5000')
-    ? `${window.location.protocol}//${window.location.host}/api`
-    : `http://${window.location.hostname}:5000/api`
+  const getApiBase = () => {
+    const { origin, hostname, port } = window.location
+
+    // 本地开发：Hexo(4000) + Flask(5000)
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port && port !== '5000') {
+      return `http://${hostname}:5000/api`
+    }
+
+    // 生产/同源：走当前站点的 HTTPS，再由 Nginx 反代到 Flask(5000)
+    return `${origin}/api`
+  }
+
+  const API_BASE = getApiBase()
 
   const SELECTORS = {
     dialog: '#ai-chat-dialog',
