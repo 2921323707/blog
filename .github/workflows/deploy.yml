@@ -6,7 +6,7 @@ on:
       - main  # 当代码推送到 main 分支时触发
     # 可选：只监听特定目录的变化
     # paths:
-    #   - 'source/_posts/**'
+    # - 'source/_posts/**'
     #   - '_config.yml'
     #   - 'themes/**'
 
