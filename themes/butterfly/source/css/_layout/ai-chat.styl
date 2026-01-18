@@ -15,10 +15,6 @@
   border: 1px solid var(--border-color)
   box-shadow: 0 10px 30px rgba(0, 0, 0, .2)
   overflow: hidden
-  --ai-chat-divider: rgba(0, 0, 0, .12)
-
-html[data-theme='dark'] #ai-chat-dialog
-  --ai-chat-divider: rgba(255, 255, 255, .14)
 
   +maxWidth768()
     top: 0
@@ -37,7 +33,7 @@ html[data-theme='dark'] #ai-chat-dialog
     color: var(--text-color)
     font-size: 1.2em
     padding-bottom: 12px
-    border-bottom: 1px solid var(--ai-chat-divider)
+    border-bottom: 1px solid var(--border-color)
 
     .ai-chat-title
       font-weight: 600
@@ -75,7 +71,7 @@ html[data-theme='dark'] #ai-chat-dialog
     gap: 8px
     align-items: center
     padding-top: 10px
-    border-top: 1px solid var(--ai-chat-divider)
+    border-top: 1px solid var(--border-color)
 
   .ai-chat-input
     flex: 1
