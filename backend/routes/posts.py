@@ -4,7 +4,10 @@ from datetime import datetime
 import os
 import re
 import subprocess
+import threading
 from werkzeug.utils import secure_filename
+
+from .rag_bot.rag_store import upsert_post
 
 bp = Blueprint('posts', __name__)
 
@@ -166,6 +169,20 @@ def submit_post():
         }
         if generate_warning:
             response_data['warning'] = generate_warning
+
+        # 增量入库：单篇文章 embedding + 写入 Chroma（后台线程，不阻塞提交）
+        def _index_job(path_str: str):
+            try:
+                upsert_post(path_str)
+            except Exception as e:
+                # 不影响发文；仅打印日志便于排查
+                print(f"RAG 增量入库失败: {e}")
+
+        try:
+            threading.Thread(target=_index_job, args=(str(filepath),), daemon=True).start()
+            response_data['data']['rag_index'] = 'queued'
+        except Exception as e:
+            response_data['data']['rag_index'] = f'failed_to_queue: {str(e)[:120]}'
         
         return jsonify(response_data)
         

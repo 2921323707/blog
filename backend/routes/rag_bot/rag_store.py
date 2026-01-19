@@ -37,6 +37,7 @@ class RagConfig:
     chat_base_url: str
     deepseek_api_key: str
     chat_model: str
+    chat_system_prompt: str
 
 
 class ZhipuEmbeddingFunction:
@@ -271,6 +272,13 @@ def load_rag_config() -> RagConfig:
     chat_base_url = (os.getenv("RAG_CHAT_BASE_URL") or "https://api.deepseek.com").strip()
     deepseek_api_key = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
     chat_model = (os.getenv("RAG_CHAT_MODEL") or ("deepseek-chat" if chat_provider == "deepseek" else "gpt-4o-mini")).strip()
+    chat_system_prompt = (os.getenv("RAG_CHAT_SYSTEM_PROMPT") or "").strip()
+    if not chat_system_prompt:
+        chat_system_prompt = (
+            "你是博客AI助手。你必须只使用提供的【引用资料[1]】回答问题。"
+            "回答中的关键结论必须用[1]标注来源；不要引用不存在的编号；不要编造。"
+            "如果引用资料不足以回答，请直接说“资料不足”，并说明需要补充什么信息。"
+        )
 
     return RagConfig(
         blog_root=blog_root,
@@ -292,6 +300,7 @@ def load_rag_config() -> RagConfig:
         chat_base_url=chat_base_url,
         deepseek_api_key=deepseek_api_key,
         chat_model=chat_model,
+        chat_system_prompt=chat_system_prompt,
     )
 
 
@@ -359,6 +368,7 @@ def reindex_posts(cfg: RagConfig) -> Dict[str, Any]:
         url = _build_post_url(cfg.site_url, cfg.permalink, meta, md_path)
         dt = _parse_date(meta.get("date"))
         date_str = dt.strftime("%Y-%m-%d %H:%M:%S") if dt else str(meta.get("date") or "")
+        post_id = md_path.stem
 
         chunks = _chunk_text(body)
         for i, chunk in enumerate(chunks):
@@ -371,6 +381,7 @@ def reindex_posts(cfg: RagConfig) -> Dict[str, Any]:
                     "url": url,
                     "date": date_str,
                     "source": str(md_path.relative_to(cfg.blog_root)).replace("\\", "/"),
+                    "post_id": post_id,
                     "chunk": i,
                 }
             )
@@ -385,6 +396,73 @@ def reindex_posts(cfg: RagConfig) -> Dict[str, Any]:
         "chunks": total_chunks,
         "persist_dir": str(cfg.persist_dir),
         "collection": cfg.collection_name,
+    }
+
+
+def upsert_post(post_path: str) -> Dict[str, Any]:
+    """
+    增量入库：只对单篇文章做 embedding 并写入向量库。
+    - 先按 post_id 删除旧 chunks（同一文章更新时覆盖）
+    - 再 add 新 chunks
+    """
+    cfg = load_rag_config()
+    p = Path(post_path)
+    if not p.exists():
+        raise RuntimeError(f"文章文件不存在：{p}")
+    if p.suffix.lower() != ".md":
+        raise RuntimeError(f"仅支持 Markdown：{p}")
+
+    _, col = _get_collection(cfg)
+
+    raw = p.read_text(encoding="utf-8", errors="ignore")
+    meta, body = _parse_front_matter(raw)
+
+    title = str(meta.get("title") or p.stem).strip()
+    url = _build_post_url(cfg.site_url, cfg.permalink, meta, p)
+    dt = _parse_date(meta.get("date"))
+    date_str = dt.strftime("%Y-%m-%d %H:%M:%S") if dt else str(meta.get("date") or "")
+    post_id = p.stem
+    try:
+        source = str(p.relative_to(cfg.blog_root)).replace("\\", "/")
+    except Exception:
+        source = str(p).replace("\\", "/")
+
+    # 删除旧数据（同一 post_id）
+    try:
+        col.delete(where={"post_id": post_id})
+    except Exception:
+        # 不阻断（不同版本/权限可能不支持 where delete）
+        pass
+
+    chunks = _chunk_text(body)
+    ids: List[str] = []
+    docs: List[str] = []
+    metas: List[Dict[str, Any]] = []
+
+    for i, chunk in enumerate(chunks):
+        ids.append(f"{post_id}:::{i}")
+        docs.append(chunk)
+        metas.append(
+            {
+                "title": title,
+                "url": url,
+                "date": date_str,
+                "source": source,
+                "post_id": post_id,
+                "chunk": i,
+            }
+        )
+
+    if ids:
+        col.add(ids=ids, documents=docs, metadatas=metas)
+
+    return {
+        "post_id": post_id,
+        "title": title,
+        "url": url,
+        "chunks": len(ids),
+        "collection": cfg.collection_name,
+        "persist_dir": str(cfg.persist_dir),
     }
 
 

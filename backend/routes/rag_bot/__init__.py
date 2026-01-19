@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from .rag_store import load_rag_config, reindex_posts, retrieve
+from .rag_store import load_rag_config, reindex_posts, retrieve, upsert_post
 
 bp = Blueprint('rag_bot', __name__)
 
@@ -21,7 +21,8 @@ def mascot_chat():
             return jsonify({'errno': 1, 'errmsg': 'question 不能为空'}), 400
 
         cfg = load_rag_config()
-        top_k = int(data.get("top_k") or 5)
+        # 只取最匹配的一条，保证“引用来源”与回答一致
+        top_k = 1
 
         # 检索
         hits = retrieve(cfg, question, k=top_k)
@@ -30,24 +31,20 @@ def mascot_chat():
             answer = f"我没在你的博客文章里检索到相关内容（时间：{now}）。你可以换个问法，或先调用 /api/ai/mascot/reindex 重建索引。"
             return jsonify({'errno': 0, 'data': {'answer': answer, 'citations': []}})
 
-        # 组织引用（去重：按 url 聚合）
-        citations = []
-        seen = set()
+        # 只保留 Top1 引用
+        h = hits[0]
+        url = (h.get("url") or "").strip()
+        citations = [{
+            "id": 1,
+            "title": h.get("title") or "",
+            "url": url,
+            "snippet": h.get("snippet") or "",
+            "source": h.get("source") or "",
+        }] if url else []
+
         numbered_context = []
-        for h in hits:
-            url = (h.get("url") or "").strip()
-            if not url or url in seen:
-                continue
-            seen.add(url)
-            idx = len(citations) + 1
-            citations.append({
-                "id": idx,
-                "title": h.get("title") or "",
-                "url": url,
-                "snippet": h.get("snippet") or "",
-                "source": h.get("source") or "",
-            })
-            numbered_context.append(f"[{idx}] {h.get('title') or ''}\nURL: {url}\n内容片段：{h.get('content') or ''}")
+        if url:
+            numbered_context.append(f"[1] {h.get('title') or ''}\nURL: {url}\n内容片段：{h.get('content') or ''}")
 
         # 生成回答（DeepSeek / OpenAI，均为 OpenAI SDK 调用方式）
         from openai import OpenAI
@@ -66,11 +63,7 @@ def mascot_chat():
                     'errmsg': 'RAG_CHAT_PROVIDER=openai 但未配置 OPENAI_API_KEY。'
                 }), 500
             client = OpenAI(api_key=cfg.openai_api_key)
-        system = (
-            "你是博客 AI 助手。你必须基于给定的“引用资料”回答问题，"
-            "并在关键结论处用 [编号] 标注引用来源。"
-            "如果资料不足，请明确说明不足，不要编造。"
-        )
+        system = cfg.chat_system_prompt
         user = (
             f"问题：{question}\n\n"
             f"引用资料（可引用编号）：\n\n" + "\n\n".join(numbered_context)
@@ -106,4 +99,20 @@ def mascot_reindex():
         return jsonify({'errno': 0, 'data': info})
     except Exception as e:
         return jsonify({'errno': 1, 'errmsg': f'建库失败: {str(e)}'}), 500
+
+
+@bp.route('/ai/mascot/index_post', methods=['POST'])
+def mascot_index_post():
+    """增量入库单篇文章（供后台/管理端调用）"""
+    try:
+        if not request.is_json:
+            return jsonify({'errno': 1, 'errmsg': '请求必须是 JSON 格式'}), 400
+        data = request.json or {}
+        post_path = (data.get("post_path") or "").strip()
+        if not post_path:
+            return jsonify({'errno': 1, 'errmsg': 'post_path 不能为空'}), 400
+        info = upsert_post(post_path)
+        return jsonify({'errno': 0, 'data': info})
+    except Exception as e:
+        return jsonify({'errno': 1, 'errmsg': f'增量入库失败: {str(e)}'}), 500
 
