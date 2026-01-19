@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from .rag_store import load_rag_config, reindex_posts, retrieve, upsert_post
+from .rag_store import load_rag_config, reindex_posts, retrieve, upsert_post, get_citation_detail
 
 bp = Blueprint('rag_bot', __name__)
 
@@ -34,12 +34,14 @@ def mascot_chat():
         # 只保留 Top1 引用
         h = hits[0]
         url = (h.get("url") or "").strip()
+        post_id = (h.get("post_id") or "").strip()
+        chunk = h.get("chunk")
         citations = [{
             "id": 1,
             "title": h.get("title") or "",
             "url": url,
-            "snippet": h.get("snippet") or "",
-            "source": h.get("source") or "",
+            "post_id": post_id,
+            "chunk": chunk,
         }] if url else []
 
         numbered_context = []
@@ -115,4 +117,18 @@ def mascot_index_post():
         return jsonify({'errno': 0, 'data': info})
     except Exception as e:
         return jsonify({'errno': 1, 'errmsg': f'增量入库失败: {str(e)}'}), 500
+
+
+@bp.route('/ai/mascot/citation_detail', methods=['GET'])
+def mascot_citation_detail():
+    """按需获取引用详情（snippet）"""
+    try:
+        post_id = (request.args.get("post_id") or "").strip()
+        chunk = request.args.get("chunk")
+        if not post_id or chunk is None:
+            return jsonify({'errno': 1, 'errmsg': 'post_id / chunk 不能为空'}), 400
+        info = get_citation_detail(post_id, int(chunk))
+        return jsonify({'errno': 0, 'data': info})
+    except Exception as e:
+        return jsonify({'errno': 1, 'errmsg': f'获取引用详情失败: {str(e)}'}), 500
 

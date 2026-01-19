@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
 
+from .prompt import get_system_prompt
+
 
 @dataclass(frozen=True)
 class RagConfig:
@@ -272,13 +274,8 @@ def load_rag_config() -> RagConfig:
     chat_base_url = (os.getenv("RAG_CHAT_BASE_URL") or "https://api.deepseek.com").strip()
     deepseek_api_key = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
     chat_model = (os.getenv("RAG_CHAT_MODEL") or ("deepseek-chat" if chat_provider == "deepseek" else "gpt-4o-mini")).strip()
-    chat_system_prompt = (os.getenv("RAG_CHAT_SYSTEM_PROMPT") or "").strip()
-    if not chat_system_prompt:
-        chat_system_prompt = (
-            "你是博客AI助手。你必须只使用提供的【引用资料[1]】回答问题。"
-            "回答中的关键结论必须用[1]标注来源；不要引用不存在的编号；不要编造。"
-            "如果引用资料不足以回答，请直接说“资料不足”，并说明需要补充什么信息。"
-        )
+    # 系统提示词统一从 prompt.py 读取（不依赖环境变量）
+    chat_system_prompt = get_system_prompt()
 
     return RagConfig(
         blog_root=blog_root,
@@ -482,6 +479,7 @@ def retrieve(cfg: RagConfig, query: str, k: int = 5) -> List[Dict[str, Any]]:
                 "url": m.get("url") or "",
                 "date": m.get("date") or "",
                 "source": m.get("source") or "",
+                "post_id": m.get("post_id") or "",
                 "chunk": m.get("chunk"),
                 "snippet": (doc or "")[:280],
                 "distance": dist,
@@ -489,4 +487,34 @@ def retrieve(cfg: RagConfig, query: str, k: int = 5) -> List[Dict[str, Any]]:
             }
         )
     return out
+
+
+def get_citation_detail(post_id: str, chunk: int) -> Dict[str, Any]:
+    """
+    按需获取引用详情（避免首次 chat 就下发 snippet）。
+    """
+    cfg = load_rag_config()
+    if not post_id:
+        raise RuntimeError("post_id 不能为空")
+    try:
+        chunk_i = int(chunk)
+    except Exception:
+        raise RuntimeError("chunk 必须是整数")
+
+    _, col = _get_collection(cfg)
+    res = col.get(where={"post_id": post_id, "chunk": chunk_i})
+    docs = res.get("documents") or []
+    metas = res.get("metadatas") or []
+
+    doc = docs[0] if docs else ""
+    meta = metas[0] if metas else {}
+    meta = meta or {}
+
+    return {
+        "post_id": post_id,
+        "chunk": chunk_i,
+        "title": meta.get("title") or "",
+        "url": meta.get("url") or "",
+        "snippet": (doc or "")[:600],
+    }
 
