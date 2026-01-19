@@ -68,6 +68,8 @@
     document.body.style.overflow = ''
   }
 
+  const safeText = (v) => (v == null ? '' : String(v))
+
   const appendMsg = (container, role, text) => {
     const item = document.createElement('div')
     item.className = `ai-chat-msg ai-chat-msg--${role}`
@@ -77,6 +79,60 @@
     bubble.textContent = text
 
     item.appendChild(bubble)
+    container.appendChild(item)
+    container.scrollTop = container.scrollHeight
+  }
+
+  const appendBotMsgWithCitations = (container, text, citations) => {
+    const item = document.createElement('div')
+    item.className = 'ai-chat-msg ai-chat-msg--bot'
+
+    const bubble = document.createElement('div')
+    bubble.className = 'ai-chat-bubble'
+    bubble.textContent = safeText(text)
+
+    item.appendChild(bubble)
+
+    const cites = Array.isArray(citations) ? citations : []
+    if (cites.length) {
+      const citeWrap = document.createElement('details')
+      citeWrap.className = 'ai-chat-citations'
+
+      const summary = document.createElement('summary')
+      summary.className = 'ai-chat-citations__summary'
+      summary.textContent = `引用来源（${cites.length}）`
+      citeWrap.appendChild(summary)
+
+      const list = document.createElement('ol')
+      list.className = 'ai-chat-citations__list'
+
+      cites.forEach((c) => {
+        const li = document.createElement('li')
+        li.className = 'ai-chat-citations__item'
+
+        const a = document.createElement('a')
+        a.className = 'ai-chat-citations__link'
+        a.href = safeText(c?.url)
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        a.textContent = safeText(c?.title || c?.url || '来源')
+        li.appendChild(a)
+
+        const snip = safeText(c?.snippet)
+        if (snip) {
+          const p = document.createElement('div')
+          p.className = 'ai-chat-citations__snippet'
+          p.textContent = snip
+          li.appendChild(p)
+        }
+
+        list.appendChild(li)
+      })
+
+      citeWrap.appendChild(list)
+      item.appendChild(citeWrap)
+    }
+
     container.appendChild(item)
     container.scrollTop = container.scrollHeight
   }
@@ -163,8 +219,9 @@
         }
 
         const answer = result?.data?.answer || ''
+        const citations = result?.data?.citations || []
         loadingEl && loadingEl.remove()
-        appendMsg(messages, 'bot', answer || '（没有返回内容）')
+        appendBotMsgWithCitations(messages, answer || '（没有返回内容）', citations)
       } catch (err) {
         loadingEl && loadingEl.remove()
         appendMsg(messages, 'bot', `出错了：${err?.message || String(err)}`)
