@@ -102,8 +102,8 @@ function Stop-ListeningPort([int]$Port) {
                 # TCP 0.0.0.0:5000 0.0.0.0:0 LISTENING 1234
                 if ($line -match "TCP\s+(\S+):(\d+)\s+\S+:\S+\s+LISTENING\s+(\d+)") {
                     $p = [int]$Matches[2]
-                    $pid = [int]$Matches[3]
-                    if ($p -eq $Port -and $pid -gt 0) { $pids += $pid }
+                    $procId = [int]$Matches[3]
+                    if ($p -eq $Port -and $procId -gt 0) { $pids += $procId }
                 }
             }
             $pids = $pids | Select-Object -Unique
@@ -112,12 +112,13 @@ function Stop-ListeningPort([int]$Port) {
         }
     }
 
-    foreach ($pid in ($pids | Select-Object -Unique)) {
+    # 注意：不要用 $pid（会和 PowerShell 只读变量 $PID 冲突）
+    foreach ($procId in ($pids | Select-Object -Unique)) {
         try {
-            Write-Host ("停止端口 {0} 的进程 PID={1}" -f $Port, $pid) -ForegroundColor Yellow
-            Stop-Process -Id $pid -Force -ErrorAction Stop
+            Write-Host ("停止端口 {0} 的进程 PID={1}" -f $Port, $procId) -ForegroundColor Yellow
+            Stop-Process -Id $procId -Force -ErrorAction Stop
         } catch {
-            Write-Host ("警告：停止 PID={0} 失败：{1}" -f $pid, $_.Exception.Message) -ForegroundColor Yellow
+            Write-Host ("警告：停止 PID={0} 失败：{1}" -f $procId, $_.Exception.Message) -ForegroundColor Yellow
         }
     }
 }
@@ -159,7 +160,15 @@ if ([string]::IsNullOrWhiteSpace($NginxExe) -and $candidatePaths.Count -gt 0) {
     $NginxExe = $candidatePaths[0]
 }
 if (-not [string]::IsNullOrWhiteSpace($NginxExe) -and (Test-Path $NginxExe)) {
-    try { & $NginxExe -s stop | Out-Null } catch { }
+    # -s stop 会读取配置；若不指定 -p/-c，会默认找 conf/nginx.conf（你当前目录下没有 conf/ 就会报错）
+    if ([string]::IsNullOrWhiteSpace($NginxConf)) { $NginxConf = Join-Path $BlogDir "nginx.conf" }
+    if (Test-Path $NginxConf) {
+        $prefixStop = ($BlogDir -replace "\\", "/")
+        $confStop = ($NginxConf -replace "\\", "/")
+        try { & $NginxExe -p $prefixStop -c $confStop -s stop | Out-Null } catch { }
+    } else {
+        try { & $NginxExe -s stop | Out-Null } catch { }
+    }
 }
 Start-Sleep -Seconds 1
 Stop-ListeningPort 443
@@ -237,8 +246,10 @@ if ([string]::IsNullOrWhiteSpace($NginxConf)) { $NginxConf = Join-Path $BlogDir 
 if (-not (Test-Path $NginxConf)) { throw "nginx.conf 未找到：$NginxConf" }
 
 $nginxTempDirs = @("client_body_temp", "proxy_temp", "fastcgi_temp", "scgi_temp", "uwsgi_temp")
+# 你的 nginx.conf 使用 temp/* 路径，这里提前创建，避免 CreateDirectory() 报错
+Ensure-Dir (Join-Path $BlogDir "temp")
 foreach ($d in $nginxTempDirs) {
-    Ensure-Dir (Join-Path $BlogDir $d)
+    Ensure-Dir (Join-Path $BlogDir ("temp\\" + $d))
 }
 
 $prefix = ($BlogDir -replace "\\", "/")
