@@ -1,6 +1,3 @@
-$ErrorActionPreference = "Stop"
-Set-StrictMode -Version Latest
-
 param(
     [string]$BlogDir = $env:BLOG_DIR,
     [string]$NodeExe = $env:NODE_EXE,
@@ -11,6 +8,9 @@ param(
     [int]$HexoPort = 4000,
     [string]$StartHexoServer = $env:START_HEXO_SERVER
 )
+
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 
 function Write-Step([string]$Message) {
     Write-Host ""
