@@ -17,6 +17,49 @@ Set-StrictMode -Off
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
+function Test-IsSshSession {
+    # Windows OpenSSH/CI 环境下，SSH 会把当前会话启动的子进程绑进 job object，断开连接时可能一起被杀掉。
+    # 因此在 SSH 会话里用“计划任务”启动后台服务，确保 workflow 结束后服务仍常驻。
+    return (
+        -not [string]::IsNullOrWhiteSpace($env:SSH_CONNECTION) -or
+        -not [string]::IsNullOrWhiteSpace($env:SSH_CLIENT) -or
+        -not [string]::IsNullOrWhiteSpace($env:SSH_TTY)
+    )
+}
+
+function Ensure-ScheduledTask {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TaskName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CommandLine
+    )
+
+    # /RU SYSTEM 不需要密码（前提：当前用户有管理员权限）
+    & schtasks "/Create" "/TN" $TaskName "/TR" $CommandLine "/SC" "ONSTART" "/RL" "HIGHEST" "/RU" "SYSTEM" "/F" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "创建/更新计划任务失败：$TaskName"
+    }
+}
+
+function Run-ScheduledTask {
+    param([Parameter(Mandatory = $true)][string]$TaskName)
+    & schtasks "/Run" "/TN" $TaskName | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "启动计划任务失败：$TaskName"
+    }
+}
+
+function End-ScheduledTaskIfExists {
+    param([Parameter(Mandatory = $true)][string]$TaskName)
+    try {
+        & schtasks "/End" "/TN" $TaskName | Out-Null
+    } catch {
+        # ignore
+    }
+}
+
 function Invoke-External([string]$Title, [scriptblock]$Block) {
     Write-Step $Title
     & $Block
@@ -147,6 +190,14 @@ $logsDir = Join-Path $BlogDir "logs"
 Ensure-Dir $logsDir
 
 Write-Step "Stop existing processes (backend/frontend/nginx)"
+$isSsh = Test-IsSshSession
+if ($isSsh) {
+    # 先停掉上一次部署创建的计划任务实例（否则端口可能占用）
+    End-ScheduledTaskIfExists -TaskName "blog-backend"
+    End-ScheduledTaskIfExists -TaskName "blog-nginx"
+    End-ScheduledTaskIfExists -TaskName "blog-hexo"
+}
+
 $candidatePaths = @(
     $NginxExe,
     $env:NGINX_EXE,
@@ -213,13 +264,23 @@ Pip-InstallWithFallback -PythonExePath $venvPy -PipInstallArgs @("--disable-pip-
 Write-Step "Start backend (waitress, 127.0.0.1:$BackendPort)"
 $backendOut = Join-Path $logsDir "backend.out.log"
 $backendErr = Join-Path $logsDir "backend.err.log"
-Start-Process `
-    -FilePath $venvPy `
-    -WorkingDirectory (Join-Path $BlogDir "backend") `
-    -ArgumentList @("-m", "waitress", "--host=127.0.0.1", "--port=$BackendPort", "app:app") `
-    -WindowStyle Hidden `
-    -RedirectStandardOutput $backendOut `
-    -RedirectStandardError $backendErr | Out-Null
+$backendWd = (Join-Path $BlogDir "backend")
+if ($isSsh) {
+    # 计划任务常驻：避免 SSH 断开后子进程被一并结束
+    # 注意：这里不做输出重定向（schtasks 的 /TR 里再做重定向在不同系统上容易踩 quoting 坑）
+    $backendCmd = "cmd.exe /c `"cd /d `"$backendWd`" && `"$venvPy`" -m waitress --host=127.0.0.1 --port=$BackendPort app:app`""
+    Ensure-ScheduledTask -TaskName "blog-backend" -CommandLine $backendCmd
+    Run-ScheduledTask -TaskName "blog-backend"
+    Write-Host "Scheduled task started: blog-backend (waitress)" -ForegroundColor Green
+} else {
+    Start-Process `
+        -FilePath $venvPy `
+        -WorkingDirectory $backendWd `
+        -ArgumentList @("-m", "waitress", "--host=127.0.0.1", "--port=$BackendPort", "app:app") `
+        -WindowStyle Hidden `
+        -RedirectStandardOutput $backendOut `
+        -RedirectStandardError $backendErr | Out-Null
+}
 
 if (-not (Wait-ListeningPort -Port $BackendPort -TimeoutSeconds 25)) {
     throw "Backend did not listen on port $BackendPort. Check: $backendErr"
@@ -251,13 +312,20 @@ Write-Step "Start frontend (optional: hexo server)"
 if ($StartHexoServer -and ($StartHexoServer.Trim().ToLower() -in @("1", "true", "yes", "y", "on"))) {
     $frontOut = Join-Path $logsDir "hexo.out.log"
     $frontErr = Join-Path $logsDir "hexo.err.log"
-    Start-Process `
-        -FilePath "cmd.exe" `
-        -WorkingDirectory $BlogDir `
-        -ArgumentList @("/c", "npx hexo server -i 127.0.0.1 -p $HexoPort") `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $frontOut `
-        -RedirectStandardError $frontErr | Out-Null
+    if ($isSsh) {
+        $hexoCmd = "cmd.exe /c `"cd /d `"$BlogDir`" && npx hexo server -i 127.0.0.1 -p $HexoPort`""
+        Ensure-ScheduledTask -TaskName "blog-hexo" -CommandLine $hexoCmd
+        Run-ScheduledTask -TaskName "blog-hexo"
+        Write-Host "Scheduled task started: blog-hexo (hexo server)" -ForegroundColor Green
+    } else {
+        Start-Process `
+            -FilePath "cmd.exe" `
+            -WorkingDirectory $BlogDir `
+            -ArgumentList @("/c", "npx hexo server -i 127.0.0.1 -p $HexoPort") `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput $frontOut `
+            -RedirectStandardError $frontErr | Out-Null
+    }
 }
 
 Write-Step "Start reverse proxy (nginx)"
@@ -278,12 +346,19 @@ $prefix = ($BlogDir -replace "\\", "/")
 $conf = ($NginxConf -replace "\\", "/")
 
 & $NginxExe -t -p $prefix -c $conf
-# 在 SSH / GitHub Actions 非交互环境下，直接执行 nginx.exe 可能会占用前台导致 action 超时。
-# 改为后台启动，确保 deploy.ps1 能正常退出。
-Start-Process `
-    -FilePath $NginxExe `
-    -ArgumentList @("-p", $prefix, "-c", $conf) `
-    -WindowStyle Hidden | Out-Null
+if ($isSsh) {
+    # 计划任务常驻：避免 SSH 断开后 nginx 被一并结束
+    $nginxCmd = "`"$NginxExe`" -p `"$prefix`" -c `"$conf`""
+    Ensure-ScheduledTask -TaskName "blog-nginx" -CommandLine $nginxCmd
+    Run-ScheduledTask -TaskName "blog-nginx"
+    Write-Host "Scheduled task started: blog-nginx (nginx)" -ForegroundColor Green
+} else {
+    # 本地/交互环境：后台启动，确保 deploy.ps1 能正常退出
+    Start-Process `
+        -FilePath $NginxExe `
+        -ArgumentList @("-p", $prefix, "-c", $conf) `
+        -WindowStyle Hidden | Out-Null
+}
 
 # 给 nginx 一点启动时间，并做轻量健康检查
 Start-Sleep -Seconds 1
