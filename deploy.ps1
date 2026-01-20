@@ -278,7 +278,21 @@ $prefix = ($BlogDir -replace "\\", "/")
 $conf = ($NginxConf -replace "\\", "/")
 
 & $NginxExe -t -p $prefix -c $conf
-& $NginxExe -p $prefix -c $conf
+# 在 SSH / GitHub Actions 非交互环境下，直接执行 nginx.exe 可能会占用前台导致 action 超时。
+# 改为后台启动，确保 deploy.ps1 能正常退出。
+Start-Process `
+    -FilePath $NginxExe `
+    -ArgumentList @("-p", $prefix, "-c", $conf) `
+    -WindowStyle Hidden | Out-Null
+
+# 给 nginx 一点启动时间，并做轻量健康检查
+Start-Sleep -Seconds 1
+if (-not (Wait-ListeningPort -Port 80 -TimeoutSeconds 10)) {
+    throw "Nginx did not listen on port 80. Check nginx logs: $(Join-Path $BlogDir 'logs\error.log')"
+}
+if (-not (Wait-ListeningPort -Port 443 -TimeoutSeconds 10)) {
+    throw "Nginx did not listen on port 443. Check nginx logs: $(Join-Path $BlogDir 'logs\error.log')"
+}
 
 Write-Step "Done"
 Write-Host ("后端: http://127.0.0.1:{0}/api/  |  Nginx: 80/443  |  public/: {1}" -f $BackendPort, (Join-Path $BlogDir "public")) -ForegroundColor Green
