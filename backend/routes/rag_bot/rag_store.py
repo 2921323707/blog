@@ -56,25 +56,72 @@ class ZhipuEmbeddingFunction:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: Optional[str] = None,
         model: str = "embedding-3",
         dimensions: int = 1024,
         base_url: str = "https://open.bigmodel.cn/api/paas/v4/embeddings",
         timeout_seconds: int = 30,
+        api_key_env_var: str = "ZHIPU_API_KEY",
     ) -> None:
-        self.api_key = (api_key or "").strip()
+        self.api_key_env_var = (api_key_env_var or "ZHIPU_API_KEY").strip()
+        self.api_key = (api_key or os.getenv(self.api_key_env_var) or "").strip()
         self.model = (model or "embedding-3").strip()
         self.dimensions = int(dimensions)
         self.base_url = (base_url or "").strip() or "https://open.bigmodel.cn/api/paas/v4/embeddings"
         self.timeout_seconds = int(timeout_seconds)
 
         if not self.api_key:
-            raise ValueError("未配置 ZHIPU_API_KEY")
+            raise ValueError(f"未配置 {self.api_key_env_var}")
         if self.dimensions not in (256, 512, 1024, 2048):
             raise ValueError("zhipu embedding-3 的 dimensions 仅支持 256/512/1024/2048")
 
-    def __call__(self, input: List[str]) -> List[List[float]]:
-        texts = [str(x or "") for x in input]
+    @staticmethod
+    def name() -> str:
+        # 供 Chroma(>=1.x) 序列化/反序列化 embedding function 用
+        return "zhipu_embedding_function"
+
+    def default_space(self) -> str:
+        return "cosine"
+
+    def supported_spaces(self) -> List[str]:
+        return ["cosine", "l2", "ip"]
+
+    @staticmethod
+    def build_from_config(config: Dict[str, Any]) -> "ZhipuEmbeddingFunction":
+        # 注意：不建议把 api_key 持久化到磁盘；默认仅保存 env var 名称
+        return ZhipuEmbeddingFunction(
+            api_key=None,
+            model=str(config.get("model") or "embedding-3"),
+            dimensions=int(config.get("dimensions") or 1024),
+            base_url=str(config.get("base_url") or "https://open.bigmodel.cn/api/paas/v4/embeddings"),
+            timeout_seconds=int(config.get("timeout_seconds") or 30),
+            api_key_env_var=str(config.get("api_key_env_var") or "ZHIPU_API_KEY"),
+        )
+
+    def get_config(self) -> Dict[str, Any]:
+        # 避免泄露 key：只保存 env var 名称
+        return {
+            "api_key_env_var": self.api_key_env_var,
+            "model": self.model,
+            "dimensions": self.dimensions,
+            "base_url": self.base_url,
+            "timeout_seconds": self.timeout_seconds,
+        }
+
+    def embed_query(self, input: Any) -> List[List[float]]:
+        # Chroma(>=1.x) query 路径会调用 embed_query
+        return self.__call__(input)
+
+    def __call__(self, input: Any) -> List[List[float]]:
+        # 兼容 Chroma OneOrMany：可能传入 str 或 List[str]
+        if input is None:
+            return []
+        if isinstance(input, str):
+            texts = [input]
+        elif isinstance(input, (list, tuple)):
+            texts = [str(x or "") for x in input]
+        else:
+            texts = [str(input)]
         if not texts:
             return []
 
@@ -235,9 +282,10 @@ def _chunk_text(text: str, chunk_size: int = 900, overlap: int = 120) -> List[st
 
 
 def load_rag_config() -> RagConfig:
-    load_dotenv()  # 允许使用 backend/.env
-
     blog_root = Path(__file__).parent.parent.parent.parent  # backend/routes/rag_bot -> blog root
+    # 允许使用 blog_root/.env 以及 backend/.env
+    load_dotenv(dotenv_path=blog_root / ".env")
+    load_dotenv(dotenv_path=blog_root / "backend" / ".env")
     posts_dir = blog_root / "source" / "_posts"
     persist_dir = blog_root / "backend" / ".rag" / "chroma"
     persist_dir.mkdir(parents=True, exist_ok=True)
@@ -334,11 +382,28 @@ def _get_collection(cfg: RagConfig):
                 "在 2C2G 机器上建议改用远程 embedding：设置 RAG_EMBED_PROVIDER=zhipu 并配置 ZHIPU_API_KEY。"
                 f" 原因：{e}"
             )
-    col = client.get_or_create_collection(
-        name=cfg.collection_name,
-        embedding_function=ef,
-        metadata={"hnsw:space": "cosine"},
-    )
+    try:
+        col = client.get_or_create_collection(
+            name=cfg.collection_name,
+            embedding_function=ef,
+            metadata={"hnsw:space": "cosine"},
+        )
+    except ValueError as e:
+        # Chroma(>=1.x)：如果 collection 已存在且 embedding_function 与持久化配置不一致，会直接报冲突
+        # 对 blog 场景来说，索引可从 posts 目录重建，因此这里选择自动重置，避免服务直接不可用。
+        msg = str(e)
+        if "Embedding function conflict" in msg:
+            try:
+                client.delete_collection(cfg.collection_name)
+            except Exception:
+                pass
+            col = client.get_or_create_collection(
+                name=cfg.collection_name,
+                embedding_function=ef,
+                metadata={"hnsw:space": "cosine"},
+            )
+        else:
+            raise
     return client, col
 
 

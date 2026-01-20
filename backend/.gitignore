@@ -2,5 +2,5 @@
 *.pyc
 __pycache__/
 *.log
-.env
+.venv/
 .rag/

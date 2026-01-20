@@ -15,8 +15,8 @@
 ## 配置
 
 配置文件 `nginx.conf` 已配置：
-- SSL 证书：`C:/Users/29213/Desktop/blog/ssl/`
-- 日志路径：`C:/Users/29213/Desktop/blog/logs/`
+- SSL 证书：`ssl/`（相对路径）
+- 日志路径：`logs/`（相对路径）
 - 域名：`dodokolu.online`
 
 ## 启动
@@ -26,10 +26,10 @@
 cd C:\nginx
 
 # 测试配置
-nginx.exe -t -c C:\Users\29213\Desktop\blog\nginx.conf
+nginx.exe -t -p C:\Users\29213\Desktop\blog -c C:\Users\29213\Desktop\blog\nginx.conf
 
 # 启动 Nginx
-nginx.exe -c C:\Users\29213\Desktop\blog\nginx.conf
+nginx.exe -p C:\Users\29213\Desktop\blog -c C:\Users\29213\Desktop\blog\nginx.conf
 
 # 停止
 nginx.exe -s stop

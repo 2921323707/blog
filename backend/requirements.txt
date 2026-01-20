@@ -21,7 +21,8 @@ python-dotenv==1.0.1
 PyYAML==6.0.1
 
 # RAG / 向量库 + 模型调用
-chromadb==0.5.23
+# 说明：本项目的自定义 embedding function 兼容 Chroma 1.x 的序列化接口（name/get_config/build_from_config）
+chromadb==1.4.1
 openai==1.58.1
 
 # 生产部署 WSGI（Windows 开发/运行用 waitress，Linux 服务器用 gunicorn）
