@@ -1,8 +1,28 @@
+#
+# Python 3.11.0 部署建议锁版本（避免上游升级导致兼容性问题）
+#
+
+# Web 框架
 Flask==2.3.3
-Flask-SQLAlchemy==3.0.5
+Werkzeug==2.3.8
+Jinja2==3.1.4
+itsdangerous==2.1.2
+click==8.1.7
+blinker==1.6.3
 Flask-CORS==4.0.0
-chromadb
-openai
-python-dotenv
-PyYAML
-requests
+
+# 数据库（SQLite）
+Flask-SQLAlchemy==3.0.5
+SQLAlchemy==2.0.36
+
+# 通用工具
+requests==2.32.3
+python-dotenv==1.0.1
+PyYAML==6.0.1
+
+# RAG / 向量库 + 模型调用
+chromadb==0.5.23
+openai==1.58.1
+
+# 生产部署 WSGI（Windows 开发/运行用 waitress，Linux 服务器用 gunicorn）
+waitress==2.1.2 ; platform_system == "Windows"

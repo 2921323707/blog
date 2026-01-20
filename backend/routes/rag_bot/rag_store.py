@@ -9,6 +9,10 @@ import requests
 import yaml
 from dotenv import load_dotenv
 
+# 关闭 Chroma 匿名遥测：云端常见因依赖不一致导致 telemetry 报错刷屏
+# 必须在 import chromadb 之前设置
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import chromadb
 from chromadb.utils import embedding_functions
 
@@ -426,7 +430,8 @@ def upsert_post(post_path: str) -> Dict[str, Any]:
 
     # 删除旧数据（同一 post_id）
     try:
-        col.delete(where={"post_id": post_id})
+        # Chroma where 语法要求显式操作符，避免云端版本差异导致解析失败
+        col.delete(where={"post_id": {"$eq": post_id}})
     except Exception:
         # 不阻断（不同版本/权限可能不支持 where delete）
         pass
@@ -502,7 +507,15 @@ def get_citation_detail(post_id: str, chunk: int) -> Dict[str, Any]:
         raise RuntimeError("chunk 必须是整数")
 
     _, col = _get_collection(cfg)
-    res = col.get(where={"post_id": post_id, "chunk": chunk_i})
+    # Chroma where 语法：多条件用 $and 组合
+    res = col.get(
+        where={
+            "$and": [
+                {"post_id": {"$eq": post_id}},
+                {"chunk": {"$eq": chunk_i}},
+            ]
+        }
+    )
     docs = res.get("documents") or []
     metas = res.get("metadatas") or []
 
