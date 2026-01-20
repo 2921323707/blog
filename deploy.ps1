@@ -146,9 +146,17 @@ $logsDir = Join-Path $BlogDir "logs"
 Ensure-Dir $logsDir
 
 Write-Step "Stop existing processes (backend/frontend/nginx)"
-$candidate = "C:\nginx\nginx.exe"
-if ([string]::IsNullOrWhiteSpace($NginxExe) -and (Test-Path $candidate)) {
-    $NginxExe = $candidate
+$candidatePaths = @(
+    $NginxExe,
+    $env:NGINX_EXE,
+    $env:NGINX_PATH,
+    "C:\nginx\nginx.exe",
+    (Join-Path $env:USERPROFILE "nginx_config\nginx.exe"),
+    "C:\Users\Administrator\nginx_config\nginx.exe"
+) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) }
+
+if ([string]::IsNullOrWhiteSpace($NginxExe) -and $candidatePaths.Count -gt 0) {
+    $NginxExe = $candidatePaths[0]
 }
 if (-not [string]::IsNullOrWhiteSpace($NginxExe) -and (Test-Path $NginxExe)) {
     try { & $NginxExe -s stop | Out-Null } catch { }
@@ -223,10 +231,15 @@ if ($StartHexoServer -and ($StartHexoServer.Trim().ToLower() -in @("1", "true", 
 
 Write-Step "Start reverse proxy (nginx)"
 if ([string]::IsNullOrWhiteSpace($NginxExe) -or -not (Test-Path $NginxExe)) {
-    throw "未找到 nginx.exe。请安装 Nginx，或设置环境变量 NGINX_EXE/NGINX_PATH 指向 nginx.exe"
+    throw "nginx.exe not found. Set NGINX_EXE/NGINX_PATH to the full path (e.g. C:\Users\Administrator\nginx_config\nginx.exe)."
 }
 if ([string]::IsNullOrWhiteSpace($NginxConf)) { $NginxConf = Join-Path $BlogDir "nginx.conf" }
 if (-not (Test-Path $NginxConf)) { throw "nginx.conf 未找到：$NginxConf" }
+
+$nginxTempDirs = @("client_body_temp", "proxy_temp", "fastcgi_temp", "scgi_temp", "uwsgi_temp")
+foreach ($d in $nginxTempDirs) {
+    Ensure-Dir (Join-Path $BlogDir $d)
+}
 
 $prefix = ($BlogDir -replace "\\", "/")
 $conf = ($NginxConf -replace "\\", "/")
