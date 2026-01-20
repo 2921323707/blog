@@ -10,7 +10,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-Set-StrictMode -Version Latest
+# 注意：PowerShell 5.1 + Server Core 环境下 StrictMode(Latest) 容易引发“变量未设置”的误报
+Set-StrictMode -Off
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -94,7 +95,7 @@ function Wait-ListeningPort([int]$Port, [int]$TimeoutSeconds = 20) {
     return $false
 }
 
-Write-Step "准备目录"
+Write-Step "Prepare directories"
 if ([string]::IsNullOrWhiteSpace($BlogDir)) { $BlogDir = $PSScriptRoot }
 if (-not (Test-Path $BlogDir)) { throw "BLOG_DIR 不存在：$BlogDir" }
 Set-Location $BlogDir
@@ -102,10 +103,10 @@ Set-Location $BlogDir
 $logsDir = Join-Path $BlogDir "logs"
 Ensure-Dir $logsDir
 
-Write-Step "终止旧进程（后端/前端/反向代理）"
-if ([string]::IsNullOrWhiteSpace($NginxExe)) {
-    $candidate = "C:\nginx\nginx.exe"
-    if (Test-Path $candidate) { $NginxExe = $candidate }
+Write-Step "Stop existing processes (backend/frontend/nginx)"
+$candidate = "C:\nginx\nginx.exe"
+if ([string]::IsNullOrWhiteSpace($NginxExe) -and (Test-Path $candidate)) {
+    $NginxExe = $candidate
 }
 if (-not [string]::IsNullOrWhiteSpace($NginxExe) -and (Test-Path $NginxExe)) {
     try { & $NginxExe -s stop | Out-Null } catch { }
@@ -116,7 +117,7 @@ Stop-ListeningPort 80
 Stop-ListeningPort $BackendPort
 Stop-ListeningPort $HexoPort
 
-Write-Step "安装 Node 依赖 + 生成前端静态文件（Hexo public/）"
+Write-Step "Build frontend static files (Hexo public/)"
 $node = Resolve-Exe $NodeExe "node" "node.exe"
 if (-not $node) { throw "未找到 node。请把 node 加入 PATH，或设置环境变量 NODE_EXE 指向 node.exe" }
 
@@ -132,7 +133,7 @@ if (Test-Path (Join-Path $BlogDir "package-lock.json")) {
 & npx hexo clean
 & npx hexo generate
 
-Write-Step "安装 Python 依赖（backend\\.venv）"
+Write-Step "Install backend dependencies (backend\\.venv)"
 $python = Resolve-Exe $PythonExe "python" "python.exe"
 if (-not $python) { throw "未找到 python。请把 python 加入 PATH，或设置环境变量 PYTHON_EXE 指向 python.exe" }
 
@@ -144,7 +145,7 @@ if (-not (Test-Path $venvPy)) {
 & $venvPy -m pip install -U pip --disable-pip-version-check
 & $venvPy -m pip install -r (Join-Path $BlogDir "backend\\requirements.txt") --disable-pip-version-check
 
-Write-Step "启动后端（Flask via waitress, 127.0.0.1:$BackendPort）"
+Write-Step "Start backend (waitress, 127.0.0.1:$BackendPort)"
 $backendOut = Join-Path $logsDir "backend.out.log"
 $backendErr = Join-Path $logsDir "backend.err.log"
 Start-Process `
@@ -159,7 +160,7 @@ if (-not (Wait-ListeningPort -Port $BackendPort -TimeoutSeconds 25)) {
     throw "后端未在端口 $BackendPort 正常监听。请检查 $backendErr"
 }
 
-Write-Step "启动前端（可选：Hexo server）"
+Write-Step "Start frontend (optional: hexo server)"
 if ($StartHexoServer -and ($StartHexoServer.Trim().ToLower() -in @("1", "true", "yes", "y", "on"))) {
     $frontOut = Join-Path $logsDir "hexo.out.log"
     $frontErr = Join-Path $logsDir "hexo.err.log"
@@ -172,7 +173,7 @@ if ($StartHexoServer -and ($StartHexoServer.Trim().ToLower() -in @("1", "true", 
         -RedirectStandardError $frontErr | Out-Null
 }
 
-Write-Step "启动反向代理（Nginx）"
+Write-Step "Start reverse proxy (nginx)"
 if ([string]::IsNullOrWhiteSpace($NginxExe) -or -not (Test-Path $NginxExe)) {
     throw "未找到 nginx.exe。请安装 Nginx，或设置环境变量 NGINX_EXE/NGINX_PATH 指向 nginx.exe"
 }
@@ -185,5 +186,5 @@ $conf = ($NginxConf -replace "\\", "/")
 & $NginxExe -t -p $prefix -c $conf
 & $NginxExe -p $prefix -c $conf
 
-Write-Step "完成"
+Write-Step "Done"
 Write-Host ("后端: http://127.0.0.1:{0}/api/  |  Nginx: 80/443  |  public/: {1}" -f $BackendPort, (Join-Path $BlogDir "public")) -ForegroundColor Green
