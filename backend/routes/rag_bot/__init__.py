@@ -21,32 +21,52 @@ def mascot_chat():
             return jsonify({'errno': 1, 'errmsg': 'question 不能为空'}), 400
 
         cfg = load_rag_config()
-        # 只取最匹配的一条，保证“引用来源”与回答一致
-        top_k = 1
+        top_k = max(1, int(cfg.retrieve_k))
+        cand_k = max(top_k, int(cfg.retrieve_candidate_k))
 
         # 检索
-        hits = retrieve(cfg, question, k=top_k)
+        hits = retrieve(
+            cfg,
+            question,
+            k=top_k,
+            candidate_k=cand_k,
+            max_distance=cfg.retrieve_max_distance,
+            per_post_max=cfg.retrieve_per_post_max,
+        )
         if not hits:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            answer = f"我没在你的博客文章里检索到相关内容（时间：{now}）。你可以换个问法，或先调用 /api/ai/mascot/reindex 重建索引。"
+            answer = f"我没在你的博客文章里检索到相关内容（时间：{now}）。你可以换个问法，或先调用API 重建索引。"
             return jsonify({'errno': 0, 'data': {'answer': answer, 'citations': []}})
 
-        # 只保留 Top1 引用
-        h = hits[0]
-        url = (h.get("url") or "").strip()
-        post_id = (h.get("post_id") or "").strip()
-        chunk = h.get("chunk")
-        citations = [{
-            "id": 1,
-            "title": h.get("title") or "",
-            "url": url,
-            "post_id": post_id,
-            "chunk": chunk,
-        }] if url else []
-
+        citations = []
         numbered_context = []
-        if url:
-            numbered_context.append(f"[1] {h.get('title') or ''}\nURL: {url}\n内容片段：{h.get('content') or ''}")
+        total_ctx = 0
+        idx = 0
+        for h in hits:
+            url = (h.get("url") or "").strip()
+            post_id = (h.get("post_id") or "").strip()
+            chunk = h.get("chunk")
+
+            content = (h.get("content") or "").strip()
+            if cfg.max_chunk_chars and len(content) > cfg.max_chunk_chars:
+                content = content[: cfg.max_chunk_chars].rstrip() + "…"
+
+            next_id = idx + 1
+            block = f"[{next_id}] {h.get('title') or ''}\nURL: {url}\n内容：{content}"
+            if cfg.max_context_chars and (total_ctx + len(block)) > cfg.max_context_chars:
+                break
+
+            idx = next_id
+            citations.append({
+                "id": idx,
+                "title": h.get("title") or "",
+                "url": url,
+                "post_id": post_id,
+                "chunk": chunk,
+                "distance": h.get("distance"),
+            })
+            numbered_context.append(block)
+            total_ctx += len(block)
 
         # 生成回答（DeepSeek / OpenAI，均为 OpenAI SDK 调用方式）
         from openai import OpenAI
@@ -90,6 +110,41 @@ def mascot_chat():
         })
     except Exception as e:
         return jsonify({'errno': 1, 'errmsg': f'AI 服务异常: {str(e)}'}), 500
+
+
+@bp.route('/ai/mascot/debug_retrieve', methods=['POST'])
+def mascot_debug_retrieve():
+    """调试检索：返回命中的 chunks、距离等信息（不走大模型）"""
+    try:
+        if not request.is_json:
+            return jsonify({'errno': 1, 'errmsg': '请求必须是 JSON 格式'}), 400
+        data = request.json or {}
+        query = (data.get('query') or '').strip()
+        if not query:
+            return jsonify({'errno': 1, 'errmsg': 'query 不能为空'}), 400
+        cfg = load_rag_config()
+        k = int(data.get("k") or cfg.retrieve_k)
+        cand_k = int(data.get("candidate_k") or cfg.retrieve_candidate_k)
+        hits = retrieve(
+            cfg,
+            query,
+            k=max(1, k),
+            candidate_k=max(1, cand_k),
+            max_distance=cfg.retrieve_max_distance,
+            per_post_max=cfg.retrieve_per_post_max,
+        )
+        # 只返回必要字段，避免一次下发过大
+        slim = [{
+            "title": h.get("title"),
+            "url": h.get("url"),
+            "post_id": h.get("post_id"),
+            "chunk": h.get("chunk"),
+            "distance": h.get("distance"),
+            "snippet": h.get("snippet"),
+        } for h in hits]
+        return jsonify({'errno': 0, 'data': {'query': query, 'hits': slim}})
+    except Exception as e:
+        return jsonify({'errno': 1, 'errmsg': f'调试检索失败: {str(e)}'}), 500
 
 
 @bp.route('/ai/mascot/reindex', methods=['POST'])

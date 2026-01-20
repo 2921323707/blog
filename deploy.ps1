@@ -225,6 +225,28 @@ if (-not (Wait-ListeningPort -Port $BackendPort -TimeoutSeconds 25)) {
     throw "Backend did not listen on port $BackendPort. Check: $backendErr"
 }
 
+Write-Step "Reindex RAG vector store (Chroma)"
+# 说明：每次 push 部署后全量重建向量库（会调用 Embedding API，耗时取决于文章数量/网络）
+# 可选：如需临时关闭，可在服务器环境变量里设置 RAG_REINDEX_ON_DEPLOY=0
+$reindexOnDeploy = ($env:RAG_REINDEX_ON_DEPLOY)
+if ([string]::IsNullOrWhiteSpace($reindexOnDeploy)) { $reindexOnDeploy = "1" }
+if ($reindexOnDeploy.Trim().ToLower() -in @("0", "false", "no", "n", "off")) {
+    Write-Host "Skip RAG reindex (RAG_REINDEX_ON_DEPLOY=0)" -ForegroundColor Yellow
+} else {
+    $reindexUrl = "http://127.0.0.1:$BackendPort/api/ai/mascot/reindex"
+    try {
+        # PS 5.1/7 都支持 TimeoutSec；给大一些，避免文章多时超时
+        $resp = Invoke-RestMethod -Method Post -Uri $reindexUrl -ContentType "application/json" -Body "{}" -TimeoutSec 3600
+        if ($null -eq $resp) { throw "Empty response" }
+        if ($resp.errno -ne 0) { throw ("API errno={0}, errmsg={1}" -f $resp.errno, $resp.errmsg) }
+        $posts = $resp.data.posts
+        $chunks = $resp.data.chunks
+        Write-Host ("RAG reindex OK. posts={0}, chunks={1}" -f $posts, $chunks) -ForegroundColor Green
+    } catch {
+        throw ("RAG reindex failed: {0}. Check backend logs: {1}" -f $_.Exception.Message, $backendErr)
+    }
+}
+
 Write-Step "Start frontend (optional: hexo server)"
 if ($StartHexoServer -and ($StartHexoServer.Trim().ToLower() -in @("1", "true", "yes", "y", "on"))) {
     $frontOut = Join-Path $logsDir "hexo.out.log"

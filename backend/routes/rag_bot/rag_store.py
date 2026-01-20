@@ -30,6 +30,19 @@ class RagConfig:
     embed_provider: str  # zhipu | openai | local（不推荐）
     local_embed_model: str
 
+    # 切分/检索参数（通过环境变量可调）
+    chunk_size: int
+    chunk_overlap: int
+    posts_recursive: bool
+    include_title_in_chunks: bool
+
+    retrieve_k: int
+    retrieve_candidate_k: int
+    retrieve_max_distance: Optional[float]
+    retrieve_per_post_max: int
+    max_context_chars: int
+    max_chunk_chars: int
+
     # 智谱 Embedding
     zhipu_api_key: str
     zhipu_embed_model: str
@@ -326,8 +339,22 @@ def load_rag_config() -> RagConfig:
     chat_base_url = (os.getenv("RAG_CHAT_BASE_URL") or "https://api.deepseek.com").strip()
     deepseek_api_key = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
     chat_model = (os.getenv("RAG_CHAT_MODEL") or ("deepseek-chat" if chat_provider == "deepseek" else "gpt-4o-mini")).strip()
-    # 系统提示词统一从 prompt.py 读取（不依赖环境变量）
-    chat_system_prompt = get_system_prompt()
+    # 默认系统提示词从 prompt.py 读取；允许用环境变量覆盖（便于线上快速调参）
+    chat_system_prompt = (os.getenv("RAG_CHAT_SYSTEM_PROMPT") or "").strip() or get_system_prompt()
+
+    # 切分/检索参数
+    chunk_size = int(os.getenv("RAG_CHUNK_SIZE") or 900)
+    chunk_overlap = int(os.getenv("RAG_CHUNK_OVERLAP") or 120)
+    posts_recursive = str(os.getenv("RAG_POSTS_RECURSIVE") or "1").strip().lower() not in ("0", "false", "no")
+    include_title_in_chunks = str(os.getenv("RAG_INCLUDE_TITLE_IN_CHUNKS") or "1").strip().lower() not in ("0", "false", "no")
+
+    retrieve_k = int(os.getenv("RAG_TOP_K") or 5)
+    retrieve_candidate_k = int(os.getenv("RAG_CANDIDATE_K") or max(12, retrieve_k))
+    max_dist_raw = (os.getenv("RAG_MAX_DISTANCE") or "").strip()
+    retrieve_max_distance = float(max_dist_raw) if max_dist_raw else None
+    retrieve_per_post_max = int(os.getenv("RAG_PER_POST_MAX") or 2)
+    max_context_chars = int(os.getenv("RAG_MAX_CONTEXT_CHARS") or 6000)
+    max_chunk_chars = int(os.getenv("RAG_MAX_CHUNK_CHARS") or 1400)
 
     return RagConfig(
         blog_root=blog_root,
@@ -338,6 +365,16 @@ def load_rag_config() -> RagConfig:
         permalink=permalink,
         embed_provider=embed_provider,
         local_embed_model=local_embed_model,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        posts_recursive=posts_recursive,
+        include_title_in_chunks=include_title_in_chunks,
+        retrieve_k=retrieve_k,
+        retrieve_candidate_k=retrieve_candidate_k,
+        retrieve_max_distance=retrieve_max_distance,
+        retrieve_per_post_max=retrieve_per_post_max,
+        max_context_chars=max_context_chars,
+        max_chunk_chars=max_chunk_chars,
         zhipu_api_key=zhipu_api_key,
         zhipu_embed_model=zhipu_embed_model,
         zhipu_embed_dimensions=zhipu_embed_dimensions,
@@ -419,7 +456,8 @@ def reindex_posts(cfg: RagConfig) -> Dict[str, Any]:
         pass
     client, col = _get_collection(cfg)
 
-    md_files = sorted(cfg.posts_dir.glob("*.md"))
+    # 兼容 _posts 子目录
+    md_files = sorted(cfg.posts_dir.rglob("*.md") if cfg.posts_recursive else cfg.posts_dir.glob("*.md"))
     total_chunks = 0
 
     ids: List[str] = []
@@ -434,13 +472,37 @@ def reindex_posts(cfg: RagConfig) -> Dict[str, Any]:
         url = _build_post_url(cfg.site_url, cfg.permalink, meta, md_path)
         dt = _parse_date(meta.get("date"))
         date_str = dt.strftime("%Y-%m-%d %H:%M:%S") if dt else str(meta.get("date") or "")
-        post_id = md_path.stem
+        # 用相对路径保证唯一（支持 _posts 子目录）
+        try:
+            post_id = str(md_path.relative_to(cfg.posts_dir).with_suffix("")).replace("\\", "/")
+        except Exception:
+            post_id = md_path.stem  # 兜底
 
-        chunks = _chunk_text(body)
+        tags = meta.get("tags")
+        if isinstance(tags, (list, tuple)):
+            tags_str = ", ".join([str(x).strip() for x in tags if str(x or "").strip()])
+        else:
+            tags_str = str(tags or "").strip()
+        categories = meta.get("categories")
+        if isinstance(categories, (list, tuple)):
+            categories_str = ", ".join([str(x).strip() for x in categories if str(x or "").strip()])
+        else:
+            categories_str = str(categories or "").strip()
+
+        chunks = _chunk_text(body, chunk_size=cfg.chunk_size, overlap=cfg.chunk_overlap)
         for i, chunk in enumerate(chunks):
-            chunk_id = f"{md_path.stem}:::{i}"
+            chunk_id = f"{post_id}:::{i}"
+            doc = chunk
+            # 将标题/标签/分类注入每个 chunk 的文档内容里（提升按标题/标签提问时的召回）
+            if cfg.include_title_in_chunks:
+                header_lines = [f"标题：{title}"]
+                if tags_str:
+                    header_lines.append(f"标签：{tags_str}")
+                if categories_str:
+                    header_lines.append(f"分类：{categories_str}")
+                doc = "\n".join(header_lines) + "\n\n" + chunk
             ids.append(chunk_id)
-            docs.append(chunk)
+            docs.append(doc)
             metas.append(
                 {
                     "title": title,
@@ -449,6 +511,8 @@ def reindex_posts(cfg: RagConfig) -> Dict[str, Any]:
                     "source": str(md_path.relative_to(cfg.blog_root)).replace("\\", "/"),
                     "post_id": post_id,
                     "chunk": i,
+                    "tags": tags_str,
+                    "categories": categories_str,
                 }
             )
         total_chunks += len(chunks)
@@ -487,7 +551,10 @@ def upsert_post(post_path: str) -> Dict[str, Any]:
     url = _build_post_url(cfg.site_url, cfg.permalink, meta, p)
     dt = _parse_date(meta.get("date"))
     date_str = dt.strftime("%Y-%m-%d %H:%M:%S") if dt else str(meta.get("date") or "")
-    post_id = p.stem
+    try:
+        post_id = str(p.relative_to(cfg.posts_dir).with_suffix("")).replace("\\", "/")
+    except Exception:
+        post_id = p.stem
     try:
         source = str(p.relative_to(cfg.blog_root)).replace("\\", "/")
     except Exception:
@@ -501,14 +568,33 @@ def upsert_post(post_path: str) -> Dict[str, Any]:
         # 不阻断（不同版本/权限可能不支持 where delete）
         pass
 
-    chunks = _chunk_text(body)
+    tags = meta.get("tags")
+    if isinstance(tags, (list, tuple)):
+        tags_str = ", ".join([str(x).strip() for x in tags if str(x or "").strip()])
+    else:
+        tags_str = str(tags or "").strip()
+    categories = meta.get("categories")
+    if isinstance(categories, (list, tuple)):
+        categories_str = ", ".join([str(x).strip() for x in categories if str(x or "").strip()])
+    else:
+        categories_str = str(categories or "").strip()
+
+    chunks = _chunk_text(body, chunk_size=cfg.chunk_size, overlap=cfg.chunk_overlap)
     ids: List[str] = []
     docs: List[str] = []
     metas: List[Dict[str, Any]] = []
 
     for i, chunk in enumerate(chunks):
         ids.append(f"{post_id}:::{i}")
-        docs.append(chunk)
+        doc = chunk
+        if cfg.include_title_in_chunks:
+            header_lines = [f"标题：{title}"]
+            if tags_str:
+                header_lines.append(f"标签：{tags_str}")
+            if categories_str:
+                header_lines.append(f"分类：{categories_str}")
+            doc = "\n".join(header_lines) + "\n\n" + chunk
+        docs.append(doc)
         metas.append(
             {
                 "title": title,
@@ -517,6 +603,8 @@ def upsert_post(post_path: str) -> Dict[str, Any]:
                 "source": source,
                 "post_id": post_id,
                 "chunk": i,
+                "tags": tags_str,
+                "categories": categories_str,
             }
         )
 
@@ -533,17 +621,30 @@ def upsert_post(post_path: str) -> Dict[str, Any]:
     }
 
 
-def retrieve(cfg: RagConfig, query: str, k: int = 5) -> List[Dict[str, Any]]:
+def retrieve(
+    cfg: RagConfig,
+    query: str,
+    k: Optional[int] = None,
+    *,
+    candidate_k: Optional[int] = None,
+    max_distance: Optional[float] = None,
+    per_post_max: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     _, col = _get_collection(cfg)
-    res = col.query(query_texts=[query], n_results=max(1, int(k)))
+    k_final = max(1, int(k if k is not None else cfg.retrieve_k))
+    cand = max(k_final, int(candidate_k if candidate_k is not None else cfg.retrieve_candidate_k))
+    res = col.query(query_texts=[query], n_results=max(1, cand))
     docs = (res.get("documents") or [[]])[0]
     metas = (res.get("metadatas") or [[]])[0]
     dists = (res.get("distances") or [[]])[0]
 
-    out: List[Dict[str, Any]] = []
+    max_d = max_distance if max_distance is not None else cfg.retrieve_max_distance
+    per_post = max(1, int(per_post_max if per_post_max is not None else cfg.retrieve_per_post_max))
+
+    out_all: List[Dict[str, Any]] = []
     for doc, meta, dist in zip(docs, metas, dists):
         m = meta or {}
-        out.append(
+        out_all.append(
             {
                 "title": m.get("title") or "",
                 "url": m.get("url") or "",
@@ -551,12 +652,32 @@ def retrieve(cfg: RagConfig, query: str, k: int = 5) -> List[Dict[str, Any]]:
                 "source": m.get("source") or "",
                 "post_id": m.get("post_id") or "",
                 "chunk": m.get("chunk"),
+                "tags": m.get("tags") or "",
+                "categories": m.get("categories") or "",
                 "snippet": (doc or "")[:280],
                 "distance": dist,
                 "content": doc or "",
             }
         )
-    return out
+
+    # 过滤：相似度阈值（Chroma cosine 距离通常越小越相关）
+    if max_d is not None:
+        out_all = [x for x in out_all if (x.get("distance") is not None and float(x["distance"]) <= float(max_d))]
+
+    # 去重/分散：同一文章最多取 per_post 条
+    picked: List[Dict[str, Any]] = []
+    per_post_cnt: Dict[str, int] = {}
+    for x in out_all:
+        pid = str(x.get("post_id") or "")
+        if pid:
+            if per_post_cnt.get(pid, 0) >= per_post:
+                continue
+            per_post_cnt[pid] = per_post_cnt.get(pid, 0) + 1
+        picked.append(x)
+        if len(picked) >= k_final:
+            break
+
+    return picked
 
 
 def get_citation_detail(post_id: str, chunk: int) -> Dict[str, Any]:

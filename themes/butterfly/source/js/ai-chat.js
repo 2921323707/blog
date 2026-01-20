@@ -22,6 +22,28 @@
     messages: '#ai-chat-messages'
   }
 
+  const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 768px)').matches
+
+  // 移动端键盘弹起时：用 visualViewport 将弹窗高度对齐“真实可视区域”
+  const updateMobileViewportVars = () => {
+    const dialog = document.querySelector(SELECTORS.dialog)
+    if (!dialog) return
+
+    // 只在移动端启用，避免影响桌面端定位（右下角悬浮）
+    if (!isMobile()) {
+      dialog.style.removeProperty('--ai-chat-top')
+      dialog.style.removeProperty('--ai-chat-height')
+      return
+    }
+
+    const vv = window.visualViewport
+    const height = Math.max(0, Math.round(vv ? vv.height : window.innerHeight))
+    const top = Math.max(0, Math.round(vv ? vv.offsetTop : 0))
+
+    dialog.style.setProperty('--ai-chat-top', `${top}px`)
+    dialog.style.setProperty('--ai-chat-height', `${height}px`)
+  }
+
   const ensureRightsideButton = () => {
     // Prefer adding into Butterfly rightside toolbar for consistent UI
     const rightsideShow = document.querySelector('#rightside #rightside-config-show')
@@ -211,8 +233,14 @@
     const input = document.querySelector(SELECTORS.input)
     animateIn(dialog, 'to_show 0.5s')
     animateIn(mask, 'to_show 0.5s')
+    // 保证 flex 布局生效（消息区/输入区才能正确占满并滚动）
+    if (dialog) dialog.style.display = 'flex'
+    if (mask) mask.style.display = 'block'
     lockScroll()
+    updateMobileViewportVars()
     input && input.focus()
+    // 部分浏览器键盘事件触发较慢，补一刀
+    setTimeout(updateMobileViewportVars, 80)
   }
 
   const hide = () => {
@@ -221,6 +249,7 @@
     animateOut(dialog, 'to_hide 0.5s')
     animateOut(mask, 'to_hide 0.5s')
     unlockScroll()
+    updateMobileViewportVars()
   }
 
   const bindOnce = () => {
@@ -238,6 +267,34 @@
     // Initial state
     dialog.style.display = 'none'
     mask.style.display = 'none'
+
+    // 键盘/地址栏变化会改变 visual viewport；只绑定一次即可
+    const bindViewportOnce = () => {
+      if (dialog.dataset.vvBound === '1') return
+      dialog.dataset.vvBound = '1'
+
+      const onChange = () => {
+        // 只有打开时才需要频繁更新
+        if (dialog.style.display === 'none') return
+        updateMobileViewportVars()
+      }
+
+      const vv = window.visualViewport
+      if (vv) {
+        vv.addEventListener('resize', onChange)
+        vv.addEventListener('scroll', onChange)
+      }
+
+      window.addEventListener('orientationchange', () => setTimeout(onChange, 120))
+      window.addEventListener('resize', () => setTimeout(onChange, 80))
+      input.addEventListener('focus', () => setTimeout(onChange, 0))
+      input.addEventListener('blur', () => setTimeout(onChange, 0))
+
+      // 首次也更新一次（避免初始高度取错）
+      updateMobileViewportVars()
+    }
+
+    bindViewportOnce()
 
     const btn = ensureRightsideButton()
     const onOpen = () => show()
