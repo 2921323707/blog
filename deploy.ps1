@@ -25,7 +25,15 @@ function Invoke-External([string]$Title, [scriptblock]$Block) {
     }
 }
 
-function Pip-InstallWithFallback([string]$PythonExePath, [string[]]$Args) {
+function Pip-InstallWithFallback {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PythonExePath,
+
+        # 不要叫 Args（会和 PowerShell 自动变量 $Args 冲突，导致实参丢失）
+        [Parameter(Mandatory = $true)]
+        [string[]]$PipInstallArgs
+    )
     $fallbacks = @()
     if (-not [string]::IsNullOrWhiteSpace($env:PIP_INDEX_URL)) { $fallbacks += $env:PIP_INDEX_URL }
     $fallbacks += @(
@@ -37,7 +45,11 @@ function Pip-InstallWithFallback([string]$PythonExePath, [string[]]$Args) {
 
     foreach ($idx in $fallbacks) {
         Write-Host ("pip install via index: {0}" -f $idx) -ForegroundColor Yellow
-        & $PythonExePath -m pip install @Args -i $idx --trusted-host pypi.org --trusted-host files.pythonhosted.org
+        & $PythonExePath -m pip install @PipInstallArgs -i $idx `
+            --trusted-host pypi.org `
+            --trusted-host files.pythonhosted.org `
+            --trusted-host mirrors.aliyun.com `
+            --trusted-host pypi.tuna.tsinghua.edu.cn
         if ($LASTEXITCODE -eq 0) { return }
     }
     throw "pip install failed on all indexes. Check network/proxy and try setting PIP_INDEX_URL."
@@ -176,10 +188,10 @@ if (-not (Test-Path $venvPy)) {
 Invoke-External "pip upgrade" { & $venvPy -m pip install -U pip --disable-pip-version-check }
 
 $req = (Join-Path $BlogDir "backend\\requirements.txt")
-Pip-InstallWithFallback $venvPy @("--disable-pip-version-check","-r",$req)
+Pip-InstallWithFallback -PythonExePath $venvPy -PipInstallArgs @("--disable-pip-version-check", "-r", $req)
 
 # 兜底：确保 waitress 在 Windows 一定存在（避免上一步失败导致后端起不来）
-Pip-InstallWithFallback $venvPy @("--disable-pip-version-check","waitress")
+Pip-InstallWithFallback -PythonExePath $venvPy -PipInstallArgs @("--disable-pip-version-check", "waitress==2.1.2")
 
 Write-Step "Start backend (waitress, 127.0.0.1:$BackendPort)"
 $backendOut = Join-Path $logsDir "backend.out.log"
