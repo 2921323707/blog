@@ -36,6 +36,8 @@ function Ensure-ScheduledTask {
         [string]$CommandLine
     )
 
+    # 注意：/TR 的值在某些环境下对特殊符号（比如 &&）非常敏感，容易被解析成 schtasks 自己的参数。
+    # 这里要求传入的 CommandLine 尽量“无特殊符号”，推荐用 cmd/ps1 包装脚本承载复杂逻辑。
     # /RU SYSTEM 不需要密码（前提：当前用户有管理员权限）
     & schtasks "/Create" "/TN" $TaskName "/TR" $CommandLine "/SC" "ONSTART" "/RL" "HIGHEST" "/RU" "SYSTEM" "/F" | Out-Null
     if ($LASTEXITCODE -ne 0) {
@@ -107,6 +109,19 @@ function Ensure-Dir([string]$Path) {
     if (-not (Test-Path $Path)) {
         New-Item -ItemType Directory -Path $Path | Out-Null
     }
+}
+
+function Write-CmdFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$Lines
+    )
+    # Windows PowerShell 5.1 默认会写 UTF-16LE，.cmd 可能无法正确执行；这里强制 ASCII（路径均为英文可用）。
+    $content = ($Lines -join "`r`n") + "`r`n"
+    Set-Content -LiteralPath $Path -Value $content -Encoding ASCII
 }
 
 function Add-ToPath([string]$Dir) {
@@ -267,9 +282,15 @@ $backendErr = Join-Path $logsDir "backend.err.log"
 $backendWd = (Join-Path $BlogDir "backend")
 if ($isSsh) {
     # 计划任务常驻：避免 SSH 断开后子进程被一并结束
-    # 注意：这里不做输出重定向（schtasks 的 /TR 里再做重定向在不同系统上容易踩 quoting 坑）
-    $backendCmd = "cmd.exe /c `"cd /d `"$backendWd`" && `"$venvPy`" -m waitress --host=127.0.0.1 --port=$BackendPort app:app`""
-    Ensure-ScheduledTask -TaskName "blog-backend" -CommandLine $backendCmd
+    # 关键：不要把 && 等特殊符号塞进 /TR，改用 .cmd 文件承载启动逻辑
+    $backendCmdFile = Join-Path $logsDir "blog-backend.cmd"
+    Write-CmdFile -Path $backendCmdFile -Lines @(
+        "@echo off"
+        "cd /d `"$backendWd`""
+        "`"$venvPy`" -m waitress --host=127.0.0.1 --port=$BackendPort app:app >> `"$backendOut`" 2>> `"$backendErr`""
+    )
+    $backendTask = "cmd.exe /c `"`"$backendCmdFile`"`""
+    Ensure-ScheduledTask -TaskName "blog-backend" -CommandLine $backendTask
     Run-ScheduledTask -TaskName "blog-backend"
     Write-Host "Scheduled task started: blog-backend (waitress)" -ForegroundColor Green
 } else {
@@ -313,8 +334,14 @@ if ($StartHexoServer -and ($StartHexoServer.Trim().ToLower() -in @("1", "true", 
     $frontOut = Join-Path $logsDir "hexo.out.log"
     $frontErr = Join-Path $logsDir "hexo.err.log"
     if ($isSsh) {
-        $hexoCmd = "cmd.exe /c `"cd /d `"$BlogDir`" && npx hexo server -i 127.0.0.1 -p $HexoPort`""
-        Ensure-ScheduledTask -TaskName "blog-hexo" -CommandLine $hexoCmd
+        $hexoCmdFile = Join-Path $logsDir "blog-hexo.cmd"
+        Write-CmdFile -Path $hexoCmdFile -Lines @(
+            "@echo off"
+            "cd /d `"$BlogDir`""
+            "npx hexo server -i 127.0.0.1 -p $HexoPort >> `"$frontOut`" 2>> `"$frontErr`""
+        )
+        $hexoTask = "cmd.exe /c `"`"$hexoCmdFile`"`""
+        Ensure-ScheduledTask -TaskName "blog-hexo" -CommandLine $hexoTask
         Run-ScheduledTask -TaskName "blog-hexo"
         Write-Host "Scheduled task started: blog-hexo (hexo server)" -ForegroundColor Green
     } else {
@@ -348,8 +375,14 @@ $conf = ($NginxConf -replace "\\", "/")
 & $NginxExe -t -p $prefix -c $conf
 if ($isSsh) {
     # 计划任务常驻：避免 SSH 断开后 nginx 被一并结束
-    $nginxCmd = "`"$NginxExe`" -p `"$prefix`" -c `"$conf`""
-    Ensure-ScheduledTask -TaskName "blog-nginx" -CommandLine $nginxCmd
+    $nginxCmdFile = Join-Path $logsDir "blog-nginx.cmd"
+    Write-CmdFile -Path $nginxCmdFile -Lines @(
+        "@echo off"
+        "cd /d `"$BlogDir`""
+        "`"$NginxExe`" -p `"$prefix`" -c `"$conf`""
+    )
+    $nginxTask = "cmd.exe /c `"`"$nginxCmdFile`"`""
+    Ensure-ScheduledTask -TaskName "blog-nginx" -CommandLine $nginxTask
     Run-ScheduledTask -TaskName "blog-nginx"
     Write-Host "Scheduled task started: blog-nginx (nginx)" -ForegroundColor Green
 } else {
