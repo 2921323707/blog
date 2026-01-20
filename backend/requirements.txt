@@ -6,7 +6,8 @@
 Flask==2.3.3
 Werkzeug==2.3.8
 Jinja2==3.1.4
-itsdangerous==2.1.2
+# 某些镜像源可能缺少特定小版本，这里放宽以避免安装失败
+itsdangerous>=2.1.2,<3
 click==8.1.7
 blinker==1.6.3
 Flask-CORS==4.0.0

@@ -13,6 +13,36 @@ $ErrorActionPreference = "Stop"
 # 注意：PowerShell 5.1 + Server Core 环境下 StrictMode(Latest) 容易引发“变量未设置”的误报
 Set-StrictMode -Off
 
+# 尽量避免 SSH/控制台中文乱码（外部程序输出也更一致）
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+try { $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+
+function Invoke-External([string]$Title, [scriptblock]$Block) {
+    Write-Step $Title
+    & $Block
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed (exit=$LASTEXITCODE): $Title"
+    }
+}
+
+function Pip-InstallWithFallback([string]$PythonExePath, [string[]]$Args) {
+    $fallbacks = @()
+    if (-not [string]::IsNullOrWhiteSpace($env:PIP_INDEX_URL)) { $fallbacks += $env:PIP_INDEX_URL }
+    $fallbacks += @(
+        "https://pypi.org/simple",
+        "https://mirrors.aliyun.com/pypi/simple",
+        "https://pypi.tuna.tsinghua.edu.cn/simple"
+    )
+    $fallbacks = $fallbacks | Select-Object -Unique
+
+    foreach ($idx in $fallbacks) {
+        Write-Host ("pip install via index: {0}" -f $idx) -ForegroundColor Yellow
+        & $PythonExePath -m pip install @Args -i $idx --trusted-host pypi.org --trusted-host files.pythonhosted.org
+        if ($LASTEXITCODE -eq 0) { return }
+    }
+    throw "pip install failed on all indexes. Check network/proxy and try setting PIP_INDEX_URL."
+}
+
 function Write-Step([string]$Message) {
     Write-Host ""
     Write-Host ("========== {0} ==========" -f $Message) -ForegroundColor Cyan
@@ -117,6 +147,7 @@ Stop-ListeningPort 80
 Stop-ListeningPort $BackendPort
 Stop-ListeningPort $HexoPort
 
+$LASTEXITCODE = 0
 Write-Step "Build frontend static files (Hexo public/)"
 $node = Resolve-Exe $NodeExe "node" "node.exe"
 if (-not $node) { throw "未找到 node。请把 node 加入 PATH，或设置环境变量 NODE_EXE 指向 node.exe" }
@@ -125,13 +156,13 @@ $npm = Resolve-Exe "" "npm" "npm"
 if (-not $npm) { throw "未找到 npm（通常随 Node 一起安装）" }
 
 if (Test-Path (Join-Path $BlogDir "package-lock.json")) {
-    & npm ci --no-audit --no-fund
+    Invoke-External "npm ci" { npm ci --no-audit --no-fund }
 } else {
-    & npm install
+    Invoke-External "npm install" { npm install }
 }
 
-& npx hexo clean
-& npx hexo generate
+Invoke-External "hexo clean" { npx hexo clean }
+Invoke-External "hexo generate" { npx hexo generate }
 
 Write-Step "Install backend dependencies (backend\\.venv)"
 $python = Resolve-Exe $PythonExe "python" "python.exe"
@@ -142,8 +173,13 @@ $venvPy = Join-Path $venvDir "Scripts\\python.exe"
 if (-not (Test-Path $venvPy)) {
     & $python -m venv $venvDir
 }
-& $venvPy -m pip install -U pip --disable-pip-version-check
-& $venvPy -m pip install -r (Join-Path $BlogDir "backend\\requirements.txt") --disable-pip-version-check
+Invoke-External "pip upgrade" { & $venvPy -m pip install -U pip --disable-pip-version-check }
+
+$req = (Join-Path $BlogDir "backend\\requirements.txt")
+Pip-InstallWithFallback $venvPy @("--disable-pip-version-check","-r",$req)
+
+# 兜底：确保 waitress 在 Windows 一定存在（避免上一步失败导致后端起不来）
+Pip-InstallWithFallback $venvPy @("--disable-pip-version-check","waitress")
 
 Write-Step "Start backend (waitress, 127.0.0.1:$BackendPort)"
 $backendOut = Join-Path $logsDir "backend.out.log"
@@ -157,7 +193,7 @@ Start-Process `
     -RedirectStandardError $backendErr | Out-Null
 
 if (-not (Wait-ListeningPort -Port $BackendPort -TimeoutSeconds 25)) {
-    throw "后端未在端口 $BackendPort 正常监听。请检查 $backendErr"
+    throw "Backend did not listen on port $BackendPort. Check: $backendErr"
 }
 
 Write-Step "Start frontend (optional: hexo server)"
