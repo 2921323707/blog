@@ -243,6 +243,31 @@ Stop-ListeningPort $BackendPort
 Stop-ListeningPort $HexoPort
 
 $LASTEXITCODE = 0
+
+Write-Step "Sync server-only posts (source\\_posts)"
+# 目标：文章只在服务器本地保存（不进 git），但每次部署/重建静态页面时都能恢复到 source/_posts
+$srcDir = Join-Path $BlogDir "source"
+$postsDir = Join-Path $srcDir "_posts"
+$persistRoot = Join-Path $BlogDir ".server_data"
+$persistPosts = Join-Path $persistRoot "posts"
+
+Ensure-Dir $srcDir
+Ensure-Dir $persistRoot
+
+if (Test-Path $persistPosts) {
+    # 有持久化目录：以其为准恢复到 source/_posts
+    Ensure-Dir $postsDir
+    & robocopy $persistPosts $postsDir /MIR /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+    $rc = $LASTEXITCODE
+    if ($rc -ge 8) { throw "Restore posts failed: robocopy exit=$rc" }
+} elseif (Test-Path $postsDir) {
+    # 首次部署/没有持久化目录：用当前 source/_posts 进行一次初始化备份
+    Ensure-Dir $persistPosts
+    & robocopy $postsDir $persistPosts /MIR /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+    $rc = $LASTEXITCODE
+    if ($rc -ge 8) { throw "Persist posts failed: robocopy exit=$rc" }
+}
+
 Write-Step "Build frontend static files (Hexo public/)"
 $node = Resolve-Exe $NodeExe "node" "node.exe"
 if (-not $node) { throw "未找到 node。请把 node 加入 PATH，或设置环境变量 NODE_EXE 指向 node.exe" }

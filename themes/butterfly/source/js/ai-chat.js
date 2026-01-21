@@ -37,15 +37,20 @@
     if (!isMobile()) {
       dialog.style.removeProperty('--ai-chat-top')
       dialog.style.removeProperty('--ai-chat-height')
+      dialog.style.removeProperty('--ai-chat-bottom')
       return
     }
 
     const vv = window.visualViewport
     const height = Math.max(0, Math.round(vv ? vv.height : window.innerHeight))
     const top = Math.max(0, Math.round(vv ? vv.offsetTop : 0))
+    // iOS/Android 键盘弹起时，visualViewport 底部会缩短；用 bottom 偏移把弹层“抬”到键盘之上
+    const vvBottom = vv ? vv.height + vv.offsetTop : window.innerHeight
+    const bottom = Math.max(0, Math.round((window.innerHeight || 0) - vvBottom))
 
     dialog.style.setProperty('--ai-chat-top', `${top}px`)
     dialog.style.setProperty('--ai-chat-height', `${height}px`)
+    dialog.style.setProperty('--ai-chat-bottom', `${bottom}px`)
   }
 
   const ensureLauncherButton = () => {

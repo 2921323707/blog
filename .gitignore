@@ -35,3 +35,9 @@ Thumbs.db
 .deploy_git/
 db.json
 
+# Server-only content (do not commit)
+.server_data/
+
+# Hexo posts (keep on server/local, don't commit)
+source/_posts/
+

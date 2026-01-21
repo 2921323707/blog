@@ -14,29 +14,62 @@
   // 固定高度（桌面端），避免被消息撑大
   height: 617px
   max-height: calc(100vh - 120px)
-  background: var(--search-bg)
+  // glassmorphism (可爱/半透明/有质感)
+  --ai-chat-glass-bg: rgba(255, 255, 255, .78)
+  --ai-chat-glass-border: rgba(255, 255, 255, .55)
+  --ai-chat-glass-shadow: 0 20px 65px rgba(0, 0, 0, .18)
+  --ai-chat-soft-pink: rgba(255, 164, 206, .20)
+  --ai-chat-soft-blue: rgba(73, 177, 245, .14)
+  background: linear-gradient(135deg, var(--ai-chat-soft-pink), var(--ai-chat-soft-blue)), var(--ai-chat-glass-bg)
   color: var(--font-color)
   addBorderRadius(12, true)
-  border: 1px solid var(--light-grey)
-  box-shadow: var(--card-box-shadow)
+  border: 1px solid var(--ai-chat-glass-border)
+  box-shadow: var(--ai-chat-glass-shadow)
   overflow: hidden
   transition: box-shadow .3s, transform .3s, opacity .3s
   transform: translateZ(0)
   -webkit-font-smoothing: antialiased
+  backdrop-filter: blur(18px) saturate(140%)
+  -webkit-backdrop-filter: blur(18px) saturate(140%)
+  isolation: isolate
+
+  // 可爱高光 + 轻微纹理（不抢内容）
+  &::before
+    content: ''
+    position: absolute
+    inset: 0
+    z-index: 0
+    pointer-events: none
+    background: radial-gradient(circle at 18% 8%, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, 0) 45%),
+      radial-gradient(circle at 92% 0%, rgba(73, 177, 245, .22) 0%, rgba(73, 177, 245, 0) 52%),
+      linear-gradient(135deg, rgba(255, 164, 206, .10) 0%, rgba(255, 255, 255, 0) 38%, rgba(73, 177, 245, .08) 100%)
+    opacity: .85
+
+  > *
+    position: relative
+    z-index: 1
+
+  [data-theme='dark'] &
+    --ai-chat-glass-bg: rgba(20, 22, 26, .76)
+    --ai-chat-glass-border: rgba(255, 255, 255, .12)
+    --ai-chat-glass-shadow: 0 22px 70px rgba(0, 0, 0, .35)
+    --ai-chat-soft-pink: rgba(255, 118, 179, .12)
+    --ai-chat-soft-blue: rgba(73, 177, 245, .12)
 
   &:hover
-    box-shadow: var(--card-hover-box-shadow)
+    box-shadow: 0 22px 70px rgba(0, 0, 0, .22)
 
   +maxWidth768()
-    top: var(--ai-chat-top, 0px)
-    right: 0
-    left: 0
-    bottom: auto
-    width: 100%
-    height: var(--ai-chat-height, 100dvh)
+    // mobile: 底部玻璃拟态弹层（键盘弹起会自动上移）
+    top: auto
+    left: 12px
+    right: 12px
+    bottom: calc(12px + var(--ai-chat-bottom, 0px) + env(safe-area-inset-bottom))
+    width: auto
+    height: clamp(220px, calc(var(--ai-chat-height, 100dvh) - 140px), calc(var(--ai-chat-height, 100dvh) - 24px))
     max-width: none
-    max-height: none
-    border-radius: 0
+    max-height: calc(var(--ai-chat-height, 100dvh) - 24px)
+    addBorderRadius(18, true)
     // iOS 键盘 + fixed + transform 组合容易出现“局部放大/抖动”
     transform: none
 
@@ -45,11 +78,17 @@
     justify-content: space-between
     align-items: center
     padding: 14px 16px
-    background: var(--search-bg)
+    background: rgba(255, 255, 255, .18)
     color: var(--font-color)
     font-size: 1.15em
     line-height: 1
-    border-bottom: 1px solid var(--light-grey)
+    border-bottom: 1px solid rgba(255, 255, 255, .28)
+    backdrop-filter: blur(14px) saturate(135%)
+    -webkit-backdrop-filter: blur(14px) saturate(135%)
+
+    [data-theme='dark'] &
+      background: rgba(20, 22, 26, .35)
+      border-bottom-color: rgba(255, 255, 255, .10)
 
     +maxWidth768()
       padding: calc(12px + env(safe-area-inset-top)) 12px 12px
@@ -57,6 +96,11 @@
     .ai-chat-title
       font-weight: 600
       letter-spacing: .2px
+      &::after
+        content: '  (ฅ´ω`ฅ)'
+        font-weight: 400
+        opacity: .75
+        font-size: .92em
 
     .ai-chat-close-button
       display: inline-flex
@@ -65,13 +109,18 @@
       width: 30px
       height: 30px
       border: none
-      background: var(--btn-bg)
+      background: rgba(255, 255, 255, .22)
       color: var(--btn-color)
       addBorderRadius(6)
       @extend .btn-effects
+      backdrop-filter: blur(12px) saturate(135%)
+      -webkit-backdrop-filter: blur(12px) saturate(135%)
+
+      [data-theme='dark'] &
+        background: rgba(255, 255, 255, .10)
 
       &:hover
-        background: var(--btn-hover-color)
+        background: rgba(255, 255, 255, .30)
 
       +maxWidth768()
         width: 34px
@@ -96,13 +145,19 @@
     // 确保在 flex 容器里能正确收缩，从而出现滚动条
     height: 0
     padding: 10px 12px
-    background: var(--card-bg)
-    border: 1px solid var(--light-grey)
+    background: rgba(255, 255, 255, .30)
+    border: 1px solid rgba(255, 255, 255, .32)
     border-radius: 10px
     overflow-x: hidden
     overflow-y: auto
     overscroll-behavior: contain
     -webkit-overflow-scrolling: touch
+    backdrop-filter: blur(14px) saturate(135%)
+    -webkit-backdrop-filter: blur(14px) saturate(135%)
+
+    [data-theme='dark'] &
+      background: rgba(20, 22, 26, .35)
+      border-color: rgba(255, 255, 255, .12)
 
   .ai-chat-form
     display: flex
@@ -110,14 +165,20 @@
     align-items: center
     margin: 0
     padding: 8px
-    background: var(--card-bg)
-    border: 1px solid var(--light-grey)
+    background: rgba(255, 255, 255, .26)
+    border: 1px solid rgba(255, 255, 255, .30)
     addBorderRadius(10, true)
     transition: border-color .2s ease, box-shadow .2s ease
+    backdrop-filter: blur(14px) saturate(135%)
+    -webkit-backdrop-filter: blur(14px) saturate(135%)
+
+    [data-theme='dark'] &
+      background: rgba(20, 22, 26, .32)
+      border-color: rgba(255, 255, 255, .12)
 
     &:focus-within
-      border-color: var(--default-bg-color)
-      box-shadow: 0 0 0 3px rgba($theme-color, .15)
+      border-color: rgba($theme-color, .45)
+      box-shadow: 0 0 0 3px rgba($theme-color, .16)
 
   .ai-chat-input
     flex: 1
@@ -180,16 +241,20 @@
   align-items: flex-end
 
   .ai-chat-bubble
-    border-color: rgba($theme-color, .25)
-    background: rgba($theme-color, .14)
+    border-color: rgba($theme-color, .22)
+    background: linear-gradient(135deg, rgba($theme-color, .16), rgba(255, 164, 206, .12))
 
 .ai-chat-msg--bot
   align-items: flex-start
 
   .ai-chat-bubble
-    background: var(--card-bg)
-    border-color: var(--light-grey)
+    background: rgba(255, 255, 255, .28)
+    border-color: rgba(255, 255, 255, .30)
     color: var(--font-color)
+
+    [data-theme='dark'] &
+      background: rgba(20, 22, 26, .32)
+      border-color: rgba(255, 255, 255, .12)
 
 // citations (sources)
 .ai-chat-citations
@@ -242,7 +307,18 @@
   left: 0
   z-index: 1000
   display: none
-  background: rgba($dark-black, .6)
+  background: linear-gradient(135deg, rgba(0, 0, 0, .22), rgba(0, 0, 0, .35))
+  backdrop-filter: blur(6px) saturate(115%)
+  -webkit-backdrop-filter: blur(6px) saturate(115%)
+
+  [data-theme='dark'] &
+    background: linear-gradient(135deg, rgba(0, 0, 0, .38), rgba(0, 0, 0, .58))
+
+@media (prefers-reduced-motion: reduce)
+  #ai-chat-dialog
+    transition: none
+  #ai-chat-mask
+    transition: none
 
 // fallback launcher button (when Butterfly rightside is unavailable)
 .ai-chat-float-btn
