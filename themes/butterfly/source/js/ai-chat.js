@@ -165,78 +165,7 @@
         a.textContent = safeText(c?.title || c?.url || '来源')
         row.appendChild(a)
 
-        // 右侧小组件：展开详情（按需请求 snippet）
-        const toggle = document.createElement('button')
-        toggle.type = 'button'
-        toggle.className = 'ai-chat-citations__toggle'
-        toggle.title = '展开/收起详情'
-        toggle.setAttribute('aria-expanded', 'false')
-        toggle.innerHTML = '<i class="fas fa-chevron-down" aria-hidden="true"></i>'
-        row.appendChild(toggle)
-
         li.appendChild(row)
-
-        const detail = document.createElement('div')
-        detail.className = 'ai-chat-citations__snippet'
-        detail.style.display = 'none'
-        li.appendChild(detail)
-
-        const postId = safeText(c?.post_id)
-        const chunk = safeText(c?.chunk)
-        let loaded = false
-
-        const loadDetail = async () => {
-          if (loaded) return
-          // 兼容：旧后端可能直接下发 snippet（无需再请求）
-          const preloaded = safeText(c?.snippet)
-          if (preloaded) {
-            detail.textContent = preloaded
-            loaded = true
-            return
-          }
-
-          // 如果缺少定位字段，给出明确提示，避免“点击没反应”
-          if (!postId || chunk === '') {
-            detail.textContent = '（无法加载详情：后端未返回 post_id/chunk。请重启 Flask 后端后再试）'
-            loaded = true
-            return
-          }
-
-          toggle.classList.add('is-loading')
-          try {
-            const url = `${API_BASE}/ai/mascot/citation_detail?post_id=${encodeURIComponent(postId)}&chunk=${encodeURIComponent(chunk)}`
-            const resp = await fetch(url)
-            const result = await resp.json()
-            if (!resp.ok || result?.errno !== 0) throw new Error(result?.errmsg || `HTTP ${resp.status}`)
-            const snip = safeText(result?.data?.snippet)
-            detail.textContent = snip || '（暂无详情）'
-            loaded = true
-          } catch (e) {
-            detail.textContent = `（加载失败：${e?.message || String(e)}）`
-          } finally {
-            toggle.classList.remove('is-loading')
-          }
-        }
-
-        toggle.addEventListener('click', async (e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          const isOpen = detail.style.display !== 'none'
-          if (isOpen) {
-            detail.style.display = 'none'
-            li.classList.remove('is-open')
-            toggle.setAttribute('aria-expanded', 'false')
-            return
-          }
-
-          // 先展开，立刻给用户反馈（哪怕后续加载失败也会显示提示）
-          detail.style.display = 'block'
-          li.classList.add('is-open')
-          toggle.setAttribute('aria-expanded', 'true')
-          detail.textContent = detail.textContent || '加载中…'
-
-          await loadDetail()
-        })
 
         list.appendChild(li)
       })

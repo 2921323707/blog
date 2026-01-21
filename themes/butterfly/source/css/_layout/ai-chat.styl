@@ -234,55 +234,6 @@
     &:hover
       text-decoration: underline
 
-  &__toggle
-    flex: 0 0 auto
-    width: 28px
-    height: 28px
-    display: inline-flex
-    align-items: center
-    justify-content: center
-    border: 1px solid transparent
-    background: transparent
-    color: var(--dark-grey)
-    padding: 0
-    addBorderRadius(8)
-    cursor: pointer
-    transition: border-color .15s ease, color .15s ease, background .15s ease
-
-    &:hover
-      color: var(--theme-color)
-      border-color: rgba($theme-color, .25)
-      background: rgba($theme-color, .06)
-
-  .is-open &__toggle
-    color: var(--theme-color)
-    border-color: rgba($theme-color, .25)
-
-  &__toggle i
-    transition: transform .18s ease
-
-  .is-open &__toggle i
-    transform: rotate(180deg)
-
-  &__toggle.is-loading i
-    // loading 时不做旋转（避免和展开动画冲突），改用轻微抖动提示
-    animation: ai-chat-cite-loading .9s ease-in-out infinite
-
-@keyframes ai-chat-cite-loading
-  0%
-    transform: rotate(0deg)
-  50%
-    transform: rotate(20deg)
-  100%
-    transform: rotate(0deg)
-
-  &__snippet
-    margin-top: 4px
-    font-size: .9em
-    color: var(--dark-grey)
-    white-space: pre-wrap
-    word-break: break-word
-
 #ai-chat-mask
   position: fixed
   top: 0
