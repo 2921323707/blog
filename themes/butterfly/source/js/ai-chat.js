@@ -80,6 +80,7 @@
     const bubble = document.createElement('div')
     bubble.className = 'ai-chat-bubble'
     bubble.textContent = text
+    bubble.style.opacity = '1'  // 非流式消息直接显示
 
     item.appendChild(bubble)
 
@@ -410,21 +411,6 @@
     return btn
   }
 
-  // 设置对话框背景图片
-  const setBackgroundImage = () => {
-    const dialog = cache.dialog
-    if (!dialog) return
-
-    // 获取背景图片列表
-    const bgImages = ['1.jpg']
-
-    // 随机选择一张图片
-    const randomBg = bgImages[Math.floor(Math.random() * bgImages.length)]
-
-    // 设置背景图片
-    dialog.style.backgroundImage = `url('/img/chat_bc/${randomBg}')`
-  }
-
   // 初始化入口
   const init = () => {
     // 缓存所有元素
@@ -434,9 +420,6 @@
     cache.messages = document.getElementById('ai-chat-messages')
     cache.input = document.querySelector('.ai-chat-input')
     cache.sendBtn = document.querySelector('.ai-chat-send-btn')
-
-    // 设置背景图片
-    setBackgroundImage()
 
     ensureButton()
     initEvents()
@@ -454,6 +437,7 @@
     cache.initialized = false
     cache.dialog = null
     cache.mask = null
+    cache.messages = null
     init()
   })
 })()

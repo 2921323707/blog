@@ -1,9 +1,10 @@
-//- AI Chat (移动端全屏版本 - 底部输入框)
+//- AI Chat (透明磨砂质感版本)
 #ai-chat
   .ai-chat-dialog#ai-chat-dialog(role="dialog" aria-modal="true" aria-hidden="true")
-    .ai-chat-banner
-      span.ai-chat-title 嘟嘟可
-      button.ai-chat-close-button#ai-chat-close(type="button" title="关闭" aria-label="关闭")
+    .ai-chat-header
+      .ai-chat-title-wrap
+        span.ai-chat-title 嘟嘟可
+      button.ai-chat-close#ai-chat-close(type="button" title="关闭" aria-label="关闭")
         i.fas.fa-times
     .ai-chat-body
       .ai-chat-messages#ai-chat-messages(role="log" aria-live="polite" aria-relevant="additions")
