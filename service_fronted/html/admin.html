@@ -17,7 +17,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.2.0/github-markdown.min.css">
 
     <!-- 自定义样式 -->
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/form.css">
+    <link rel="stylesheet" href="/static/css/list.css">
+    <link rel="stylesheet" href="/static/css/modal.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
 
     <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -31,10 +36,14 @@
             <div class="header-left">
                 <h1 class="site-title">
                     <i class="fas fa-blog"></i>
-                    <span>博客文章编辑器</span>
+                    <span>博客文章管理</span>
                 </h1>
             </div>
             <div class="header-right">
+                <button class="btn-icon" id="viewToggle" title="切换视图">
+                    <i class="fas fa-list" id="viewToggleIcon"></i>
+                    <span id="viewToggleText">文章列表</span>
+                </button>
                 <button class="btn-icon" id="importMdBtn" title="导入 Markdown 文件">
                     <i class="fas fa-file-import"></i>
                 </button>
@@ -57,7 +66,28 @@
                 </div>
             </div>
 
-            <form id="postForm" class="post-form">
+            <!-- 文章列表视图 -->
+            <div id="postsListView" class="posts-list-view" style="display: none;">
+                <div class="posts-list-header">
+                    <h2>
+                        <i class="fas fa-list"></i>
+                        文章列表
+                    </h2>
+                    <button class="btn btn-primary" id="newPostBtn">
+                        <i class="fas fa-plus"></i>
+                        新建文章
+                    </button>
+                </div>
+                <div class="posts-list-container" id="postsListContainer">
+                    <div class="loading" id="postsListLoading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>加载中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编辑器视图 -->
+            <form id="postForm" class="post-form" style="display: none;">
                 <!-- 文章标题 -->
                 <div class="form-group">
                     <label for="title" class="form-label">
@@ -162,11 +192,15 @@
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary" id="submitBtn">
                         <i class="fas fa-paper-plane"></i>
-                        提交文章
+                        <span id="submitBtnText">提交文章</span>
                     </button>
                     <button type="button" class="btn btn-secondary" id="previewBtn">
                         <i class="fas fa-eye"></i>
                         预览文章
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display: none;">
+                        <i class="fas fa-times"></i>
+                        取消编辑
                     </button>
                 </div>
 
@@ -236,7 +270,16 @@
         </div>
     </div>
 
-    <script src="/static/js/admin.js"></script>
+    <!-- JavaScript 模块 -->
+    <script src="/static/js/config.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/theme.js"></script>
+    <script src="/static/js/tags.js"></script>
+    <script src="/static/js/upload.js"></script>
+    <script src="/static/js/form.js"></script>
+    <script src="/static/js/list.js"></script>
+    <script src="/static/js/editor.js"></script>
+    <script src="/static/js/main.js"></script>
 </body>
 
 </html>

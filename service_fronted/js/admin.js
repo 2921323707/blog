@@ -26,6 +26,8 @@ let tags = [];
 let categories = [];
 let uploadedImages = [];
 let coverImageUrl = null;
+let currentView = 'editor'; // 'editor' 或 'list'
+let editingFilename = null; // 当前编辑的文章文件名，null 表示新建
 
 // 主题切换
 function initTheme() {
@@ -54,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 DOMContentLoaded 事件触发，开始初始化...');
     try {
         initTheme();
+        initViewToggle();
         initForm();
         initTags();
         initCategories();
@@ -62,6 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
         initPreview();
         initHelp();
         initImportMd();
+        initPostsList();
+        // 默认显示列表视图
+        showListView();
         console.log('✅ 所有初始化函数执行完成');
     } catch (error) {
         console.error('❌ 初始化过程中发生错误:', error);
@@ -176,6 +182,8 @@ function initCoverUpload() {
         const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
         if (files.length > 0) {
             handleCoverUpload(files[0]);
+        } else {
+            showStatus('请拖拽图片文件', 'error');
         }
     });
 
@@ -187,6 +195,25 @@ function initCoverUpload() {
 }
 
 async function handleCoverUpload(file) {
+    // 文件验证
+    if (!file) {
+        showStatus('请选择要上传的文件', 'error');
+        return;
+    }
+
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+        showStatus('只能上传图片文件', 'error');
+        return;
+    }
+
+    // 检查文件大小（限制为 10MB）
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        showStatus(`文件大小超过限制（最大 10MB），当前文件: ${(file.size / 1024 / 1024).toFixed(2)}MB`, 'error');
+        return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', 'cover');
@@ -200,7 +227,54 @@ async function handleCoverUpload(file) {
             body: formData
         });
 
-        const result = await response.json();
+        // 先读取响应文本（响应流只能读取一次）
+        const responseText = await response.text();
+        
+        // 检查响应状态
+        if (!response.ok) {
+            // 尝试解析错误响应
+            let errorMsg = `HTTP 错误: ${response.status} ${response.statusText}`;
+            
+            // 检查是否是 HTML 响应
+            if (responseText.trim().startsWith('<')) {
+                // HTML 响应，根据状态码给出提示
+                if (response.status === 413) {
+                    errorMsg = '文件大小超过服务器限制，请选择较小的文件';
+                } else if (response.status === 404) {
+                    errorMsg = '上传接口不存在，请检查服务器配置';
+                } else if (response.status === 500) {
+                    errorMsg = '服务器内部错误，请稍后重试';
+                } else {
+                    errorMsg = `服务器错误 (${response.status})，请稍后重试`;
+                }
+            } else {
+                // 尝试解析 JSON 错误响应
+                try {
+                    const errorData = JSON.parse(responseText);
+                    if (errorData.errmsg) {
+                        errorMsg = errorData.errmsg;
+                    }
+                } catch (e) {
+                    // 不是 JSON，使用默认错误信息
+                    console.error('无法解析错误响应:', e);
+                }
+            }
+            throw new Error(errorMsg);
+        }
+
+        // 解析成功响应
+        let result;
+        try {
+            // 检查是否是 HTML 响应（不应该发生，但以防万一）
+            if (responseText.trim().startsWith('<')) {
+                throw new Error('服务器返回了错误页面，请检查服务器配置');
+            }
+            result = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('响应解析错误:', parseError);
+            console.error('响应内容:', responseText.substring(0, 200));
+            throw new Error('服务器响应格式错误，请稍后重试');
+        }
 
         if (result.errno === 0) {
             coverImageUrl = result.data.url;
@@ -218,13 +292,32 @@ async function handleCoverUpload(file) {
 
             // 添加删除按钮事件
             coverItem.querySelector('.remove').addEventListener('click', removeCover);
+            
+            showStatus('封面图片上传成功', 'success');
+            setTimeout(() => {
+                const status = document.getElementById('status');
+                if (status && status.textContent.includes('封面图片上传成功')) {
+                    status.className = 'status';
+                    status.textContent = '';
+                }
+            }, 2000);
         } else {
             coverPreview.innerHTML = '';
-            showStatus(`封面图片上传失败: ${result.errmsg}`, 'error');
+            const errorMsg = result.errmsg || '未知错误';
+            showStatus(`封面图片上传失败: ${errorMsg}`, 'error');
+            console.error('上传失败详情:', result);
         }
     } catch (error) {
         coverPreview.innerHTML = '';
-        showStatus(`封面图片上传失败: ${error.message}`, 'error');
+        let errorMsg = error.message;
+        
+        // 处理网络错误
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMsg = '网络连接失败，请检查网络连接或稍后重试';
+        }
+        
+        showStatus(`封面图片上传失败: ${errorMsg}`, 'error');
+        console.error('上传错误:', error);
     }
 }
 
@@ -327,6 +420,282 @@ async function uploadImage(file) {
     }
 }
 
+// 视图切换
+function initViewToggle() {
+    const viewToggle = document.getElementById('viewToggle');
+    const viewToggleIcon = document.getElementById('viewToggleIcon');
+    const viewToggleText = document.getElementById('viewToggleText');
+    
+    viewToggle.addEventListener('click', () => {
+        if (currentView === 'editor') {
+            showListView();
+        } else {
+            showEditorView();
+        }
+    });
+}
+
+function showListView() {
+    currentView = 'list';
+    document.getElementById('postsListView').style.display = 'block';
+    document.getElementById('postForm').style.display = 'none';
+    document.getElementById('viewToggleIcon').className = 'fas fa-edit';
+    document.getElementById('viewToggleText').textContent = '编辑文章';
+    loadPostsList();
+}
+
+function showEditorView() {
+    currentView = 'editor';
+    document.getElementById('postsListView').style.display = 'none';
+    document.getElementById('postForm').style.display = 'block';
+    document.getElementById('viewToggleIcon').className = 'fas fa-list';
+    document.getElementById('viewToggleText').textContent = '文章列表';
+}
+
+// 文章列表功能
+function initPostsList() {
+    const newPostBtn = document.getElementById('newPostBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    
+    newPostBtn.addEventListener('click', () => {
+        resetForm();
+        showEditorView();
+    });
+    
+    cancelEditBtn.addEventListener('click', () => {
+        if (confirm('确定要取消编辑吗？未保存的更改将丢失。')) {
+            resetForm();
+            showListView();
+        }
+    });
+}
+
+async function loadPostsList() {
+    const container = document.getElementById('postsListContainer');
+    const loading = document.getElementById('postsListLoading');
+    
+    loading.style.display = 'flex';
+    container.innerHTML = '';
+    
+    try {
+        const response = await fetch(`${API_BASE}/posts/list`);
+        const result = await response.json();
+        
+        loading.style.display = 'none';
+        
+        if (result.errno === 0) {
+            const posts = result.data || [];
+            
+            if (posts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>还没有文章，点击"新建文章"开始创作吧！</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = posts.map(post => {
+                    const filename = escapeHtml(post.filename);
+                    return `
+                    <div class="post-item" data-filename="${filename}">
+                        <div class="post-item-content">
+                            <h3 class="post-title">${escapeHtml(post.title || post.filename)}</h3>
+                            <div class="post-meta">
+                                <span class="post-date">
+                                    <i class="fas fa-calendar"></i>
+                                    ${post.date || '未设置日期'}
+                                </span>
+                                <span class="post-filename">
+                                    <i class="fas fa-file"></i>
+                                    ${filename}
+                                </span>
+                                <span class="post-size">
+                                    <i class="fas fa-hdd"></i>
+                                    ${formatFileSize(post.size || 0)}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="post-item-actions">
+                            <button class="btn btn-sm btn-primary edit-post-btn" data-filename="${filename}" title="编辑">
+                                <i class="fas fa-edit"></i>
+                                编辑
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-post-btn" data-filename="${filename}" title="删除">
+                                <i class="fas fa-trash"></i>
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+                
+                // 绑定编辑和删除按钮事件
+                container.querySelectorAll('.edit-post-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const filename = e.target.closest('.edit-post-btn').getAttribute('data-filename');
+                        editPost(filename);
+                    });
+                });
+                
+                container.querySelectorAll('.delete-post-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const filename = e.target.closest('.delete-post-btn').getAttribute('data-filename');
+                        deletePost(filename);
+                    });
+                });
+            }
+        } else {
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>加载失败: ${result.errmsg || '未知错误'}</p>
+                    <button class="btn btn-primary retry-load-btn">重试</button>
+                </div>
+            `;
+            container.querySelector('.retry-load-btn').addEventListener('click', loadPostsList);
+        }
+    } catch (error) {
+        loading.style.display = 'none';
+        container.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>加载失败: ${error.message}</p>
+                <button class="btn btn-primary retry-load-btn">重试</button>
+            </div>
+        `;
+        container.querySelector('.retry-load-btn').addEventListener('click', loadPostsList);
+    }
+}
+
+async function editPost(filename) {
+    try {
+        showStatus('正在加载文章...', 'info');
+        const response = await fetch(`${API_BASE}/posts/get?filename=${encodeURIComponent(filename)}`);
+        const result = await response.json();
+        
+        if (result.errno === 0) {
+            const post = result.data;
+            
+            // 填充表单
+            document.getElementById('title').value = post.title || '';
+            document.getElementById('content').value = post.content || '';
+            document.getElementById('date').value = post.date ? post.date.split(' ')[0].split('T')[0] : '';
+            
+            // 填充标签
+            tags = Array.isArray(post.tags) ? [...post.tags] : (post.tags ? [post.tags] : []);
+            updateTagsDisplay();
+            
+            // 填充分类
+            categories = Array.isArray(post.categories) ? [...post.categories] : (post.categories ? [post.categories] : []);
+            updateCategoriesDisplay();
+            
+            // 填充封面
+            if (post.cover) {
+                coverImageUrl = post.cover;
+                const coverPreview = document.getElementById('coverPreview');
+                const imageSrc = post.cover.startsWith('http')
+                    ? post.cover
+                    : `${window.location.origin}${post.cover}`;
+                const coverItem = document.createElement('div');
+                coverItem.className = 'cover-preview-item';
+                coverItem.innerHTML = `
+                    <img src="${imageSrc}" alt="封面预览" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'400\' height=\'200\'/%3E%3Ctext fill=\'%23999\' font-family=\'sans-serif\' font-size=\'18\' dy=\'10.5\' font-weight=\'bold\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\'%3E图片加载失败%3C/text%3E%3C/svg%3E'">
+                    <button type="button" class="remove" title="删除封面">×</button>
+                `;
+                coverPreview.innerHTML = '';
+                coverPreview.appendChild(coverItem);
+                coverItem.querySelector('.remove').addEventListener('click', removeCover);
+            } else {
+                coverImageUrl = null;
+                document.getElementById('coverPreview').innerHTML = '';
+            }
+            
+            // 清空图片预览（编辑时不自动加载已上传的图片）
+            uploadedImages = [];
+            document.getElementById('imagePreview').innerHTML = '';
+            
+            // 设置编辑模式
+            editingFilename = filename;
+            document.getElementById('submitBtnText').textContent = '更新文章';
+            document.getElementById('cancelEditBtn').style.display = 'inline-flex';
+            
+            // 切换到编辑器视图
+            showEditorView();
+            
+            // 滚动到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            showStatus('文章加载成功', 'success');
+            setTimeout(() => {
+                const status = document.getElementById('status');
+                status.className = 'status';
+                status.textContent = '';
+            }, 2000);
+        } else {
+            showStatus(`❌ 加载失败: ${result.errmsg || '未知错误'}`, 'error');
+        }
+    } catch (error) {
+        showStatus(`❌ 加载失败: ${error.message}`, 'error');
+    }
+}
+
+async function deletePost(filename) {
+    const postTitle = filename.replace('.md', '');
+    if (!confirm(`确定要删除文章 "${postTitle}" 吗？此操作不可恢复！`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/posts/delete?filename=${encodeURIComponent(filename)}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.errno === 0) {
+            showStatus(`✅ ${result.data.message || '文章删除成功！'}`, 'success');
+            // 重新加载列表
+            setTimeout(() => {
+                loadPostsList();
+                const status = document.getElementById('status');
+                status.className = 'status';
+                status.textContent = '';
+            }, 1500);
+        } else {
+            showStatus(`❌ 删除失败: ${result.errmsg || '未知错误'}`, 'error');
+        }
+    } catch (error) {
+        showStatus(`❌ 删除失败: ${error.message}`, 'error');
+    }
+}
+
+function resetForm() {
+    document.getElementById('postForm').reset();
+    tags = [];
+    categories = [];
+    uploadedImages = [];
+    coverImageUrl = null;
+    editingFilename = null;
+    updateTagsDisplay();
+    updateCategoriesDisplay();
+    document.getElementById('imagePreview').innerHTML = '';
+    document.getElementById('coverPreview').innerHTML = '';
+    document.getElementById('date').valueAsDate = new Date();
+    document.getElementById('submitBtnText').textContent = '提交文章';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+    const status = document.getElementById('status');
+    status.className = 'status';
+    status.textContent = '';
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
 // 表单提交
 async function handleSubmit(e) {
     e.preventDefault();
@@ -335,7 +704,7 @@ async function handleSubmit(e) {
     const status = document.getElementById('status');
 
     submitBtn.disabled = true;
-    showStatus('正在提交...', 'info');
+    showStatus(editingFilename ? '正在更新...' : '正在提交...', 'info');
 
     const data = {
         title: document.getElementById('title').value.trim(),
@@ -346,9 +715,17 @@ async function handleSubmit(e) {
         date: document.getElementById('date').value || undefined
     };
 
+    // 如果是编辑模式，添加文件名
+    if (editingFilename) {
+        data.filename = editingFilename;
+    }
+
     try {
-        const response = await fetch(`${API_BASE}/posts/submit`, {
-            method: 'POST',
+        const url = editingFilename ? `${API_BASE}/posts/update` : `${API_BASE}/posts/submit`;
+        const method = editingFilename ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -358,32 +735,22 @@ async function handleSubmit(e) {
         const result = await response.json();
 
         if (result.errno === 0) {
-            let message = `✅ ${result.data.message || '文章提交成功！'}`;
+            let message = `✅ ${result.data.message || (editingFilename ? '文章更新成功！' : '文章提交成功！')}`;
             if (result.warning) {
                 message += `\n⚠️ ${result.warning}`;
             }
             showStatus(message, 'success');
 
-            // 清空表单
+            // 清空表单并返回列表
             setTimeout(() => {
-                document.getElementById('postForm').reset();
-                tags = [];
-                categories = [];
-                uploadedImages = [];
-                coverImageUrl = null;
-                updateTagsDisplay();
-                updateCategoriesDisplay();
-                document.getElementById('imagePreview').innerHTML = '';
-                document.getElementById('coverPreview').innerHTML = '';
-                document.getElementById('date').valueAsDate = new Date();
-                status.className = 'status';
-                status.textContent = '';
-            }, 5000);
+                resetForm();
+                showListView();
+            }, 2000);
         } else {
-            showStatus(`❌ 提交失败: ${result.errmsg || '未知错误'}`, 'error');
+            showStatus(`❌ ${editingFilename ? '更新' : '提交'}失败: ${result.errmsg || '未知错误'}`, 'error');
         }
     } catch (error) {
-        showStatus(`❌ 提交失败: ${error.message}`, 'error');
+        showStatus(`❌ ${editingFilename ? '更新' : '提交'}失败: ${error.message}`, 'error');
     } finally {
         submitBtn.disabled = false;
     }
