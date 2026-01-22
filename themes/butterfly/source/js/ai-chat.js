@@ -201,8 +201,11 @@
   }
 
   const show = ({ dialog, mask, input, messages }) => {
-    // 防止重复显示
-    if (dialog && dialog.style.display !== 'none') return
+    // 防止重复显示 - 检查关闭标记和显示状态
+    if (dialog && (dialog.dataset.isClosing === '1' || dialog.style.display !== 'none')) return
+
+    // 清除关闭标记
+    if (dialog) delete dialog.dataset.isClosing
 
     animateIn(dialog, 'to_show 0.5s')
     animateIn(mask, 'to_show 0.5s')
@@ -222,13 +225,34 @@
 
     input && input.focus()
     // 移动端键盘弹出可能有延迟，延迟更新确保高度正确
-    setTimeout(() => updateMobileViewportVars(dialog), 100)
-    setTimeout(() => updateMobileViewportVars(dialog), 300)
+    // 添加检查，确保对话框仍然处于打开状态
+    const scheduleUpdate = () => {
+      setTimeout(() => {
+        if (dialog.style.display !== 'none' && dialog.dataset.isClosing !== '1') {
+          updateMobileViewportVars(dialog)
+        }
+      }, 100)
+    }
+    const scheduleUpdateLong = () => {
+      setTimeout(() => {
+        if (dialog.style.display !== 'none' && dialog.dataset.isClosing !== '1') {
+          updateMobileViewportVars(dialog)
+        }
+      }, 300)
+    }
+    scheduleUpdate()
+    scheduleUpdateLong()
   }
 
   const hide = ({ dialog, mask, input, send }) => {
-    // 防止重复隐藏
-    if (dialog && dialog.style.display === 'none') return
+    // 防止重复隐藏 - 检查关闭标记和显示状态
+    if (dialog && (dialog.dataset.isClosing === '1' || dialog.style.display === 'none')) return
+
+    // 设置关闭标记，防止异步事件再次显示
+    if (dialog) dialog.dataset.isClosing = '1'
+
+    // 先 blur input，防止 blur 事件在关闭标记设置后触发
+    input && input.blur()
 
     // 立即设置 display 为 none，防止动画导致的再次显示
     if (dialog) dialog.style.display = 'none'
@@ -240,8 +264,12 @@
     setAriaHidden(mask, true)
     unlockScroll()
     updateMobileViewportVars(dialog)
-    input && input.blur()
     if (send) send.disabled = false
+
+    // 延迟清除关闭标记，确保所有异步事件处理完成
+    setTimeout(() => {
+      if (dialog) delete dialog.dataset.isClosing
+    }, 600)
   }
 
   const bindOnce = () => {
@@ -269,8 +297,8 @@
       dialog.dataset.vvBound = '1'
 
       const onChange = () => {
-        // 只有打开时才需要频繁更新
-        if (dialog.style.display === 'none') return
+        // 只有打开时才需要频繁更新，同时检查关闭标记
+        if (dialog.style.display === 'none' || dialog.dataset.isClosing === '1') return
         updateMobileViewportVars(dialog)
       }
 
@@ -283,6 +311,8 @@
 
       // 降级：监听窗口变化
       window.addEventListener('orientationchange', () => {
+        // 只有打开且不在关闭过程中时才更新
+        if (dialog.style.display === 'none' || dialog.dataset.isClosing === '1') return
         setTimeout(() => {
           updateMobileViewportVars(dialog)
           // 横竖屏切换后，滚动到消息底部
@@ -355,7 +385,8 @@
 
     addListener(window, 'keydown', (e) => {
       if (e.key !== 'Escape') return
-      if (dialog.style.display === 'none') return
+      // 检查对话框是否已关闭或正在关闭
+      if (dialog.style.display === 'none' || dialog.dataset.isClosing === '1') return
       onClose()
     })
 

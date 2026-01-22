@@ -367,7 +367,14 @@ def upload_image():
 def get_post():
     """获取单篇文章详情"""
     try:
+        # 调试输出
+        print(f"[DEBUG GET] 收到的请求路径: {request.path}")
+        print(f"[DEBUG GET] 收到的查询字符串: {request.query_string.decode('utf-8')}")
+        print(f"[DEBUG GET] 收到的所有参数: {dict(request.args)}")
+        
         filename = request.args.get('filename')
+        print(f"[DEBUG GET] 提取的文件名: {repr(filename)}")
+        
         if not filename:
             return jsonify({'errno': 1, 'errmsg': '文件名不能为空'}), 400
         
@@ -377,9 +384,9 @@ def get_post():
             return jsonify({'errno': 1, 'errmsg': '无效的文件名：包含路径遍历字符'}), 400
 
         # 确保文件名只包含合法字符（文件名+扩展名）
-        # 允许字母、数字、下划线、连字符、点、空格和中文
+        # 允许字母、数字、下划线、连字符、点、空格、引号和中文
         import re
-        if not re.match(r'^[a-zA-Z0-9_\-\s.\u4e00-\u9fa5]+\.md$', filename):
+        if not re.match(r'^[a-zA-Z0-9_\- .\"\'\u4e00-\u9fa5]+\.md$', filename):
             return jsonify({'errno': 1, 'errmsg': '无效的文件名格式'}), 400
         
         filepath = POSTS_DIR / filename
@@ -434,9 +441,9 @@ def update_post():
             return jsonify({'errno': 1, 'errmsg': '无效的文件名：包含路径遍历字符'}), 400
 
         # 确保文件名只包含合法字符（文件名+扩展名）
-        # 允许字母、数字、下划线、连字符、点、空格和中文
+        # 允许字母、数字、下划线、连字符、点、空格、引号和中文
         import re
-        if not re.match(r'^[a-zA-Z0-9_\-\s.\u4e00-\u9fa5]+\.md$', filename):
+        if not re.match(r'^[a-zA-Z0-9_\- .\"\'\u4e00-\u9fa5]+\.md$', filename):
             return jsonify({'errno': 1, 'errmsg': '无效的文件名格式'}), 400
         
         filepath = POSTS_DIR / filename
@@ -571,9 +578,9 @@ def delete_post():
             return jsonify({'errno': 1, 'errmsg': '无效的文件名：包含路径遍历字符'}), 400
 
         # 确保文件名只包含合法字符（文件名+扩展名）
-        # 允许字母、数字、下划线、连字符、点、空格和中文
+        # 允许字母、数字、下划线、连字符、点、空格、引号和中文
         import re
-        if not re.match(r'^[a-zA-Z0-9_\-\s.\u4e00-\u9fa5]+\.md$', filename):
+        if not re.match(r'^[a-zA-Z0-9_\- .\"\'\u4e00-\u9fa5]+\.md$', filename):
             return jsonify({'errno': 1, 'errmsg': '无效的文件名格式'}), 400
         
         filepath = POSTS_DIR / filename

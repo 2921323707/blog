@@ -35,3 +35,6 @@ Thumbs.db
 .deploy_git/
 db.json
 
+# Cloud admin test
+backend/cloud_adm/test
+
