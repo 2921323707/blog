@@ -1,5 +1,25 @@
-// AI Chat modal (MVP) - 优化移动端键盘弹出体验
+// AI Chat 组件 - 全端兼容版本
 
+// 品牌色变量
+--brand-1: #fc4a47
+--brand-2: #fc636b
+--brand-3: #fec9c8
+
+// 遮罩层
+#ai-chat-mask
+  position: fixed
+  top: 0
+  left: 0
+  right: 0
+  bottom: 0
+  z-index: 1000
+  display: none
+  background: rgba(0, 0, 0, .4)
+
+  [data-theme='dark'] &
+    background: rgba(0, 0, 0, .6)
+
+// 对话框主体
 #ai-chat-dialog
   position: fixed
   right: 20px
@@ -7,380 +27,337 @@
   z-index: 1001
   display: none
   flex-direction: column
-  padding: 0
-  box-sizing: border-box
-  width: 420px
+  width: 400px
   max-width: calc(100vw - 40px)
-  // 固定高度（桌面端），避免被消息撑大
-  height: 617px
+  height: 560px
   max-height: calc(100vh - 120px)
-  // glassmorphism (可爱/半透明/有质感)
-  --ai-chat-glass-bg: rgba(255, 255, 255, .78)
-  --ai-chat-glass-border: rgba(255, 255, 255, .55)
-  --ai-chat-glass-shadow: 0 20px 65px rgba(0, 0, 0, .18)
-  --ai-chat-soft-pink: rgba(255, 164, 206, .20)
-  --ai-chat-soft-blue: rgba(73, 177, 245, .14)
-  background: linear-gradient(135deg, var(--ai-chat-soft-pink), var(--ai-chat-soft-blue)), var(--ai-chat-glass-bg)
-  color: var(--font-color)
-  addBorderRadius(12, true)
-  border: 1px solid var(--ai-chat-glass-border)
-  box-shadow: var(--ai-chat-glass-shadow)
+  // 背景由 JS 动态设置（随机从 /img/chat_bc/ 目录选择）
+  background-color: rgba(255, 255, 255, .85)
+  background-repeat: no-repeat
+  background-size: cover
+  background-position: center
+  border-radius: 16px
+  box-shadow: 0 4px 24px rgba(0, 0, 0, .15)
   overflow: hidden
-  transition: box-shadow .3s, transform .3s, opacity .3s
-  transform: translateZ(0)
-  -webkit-font-smoothing: antialiased
-  backdrop-filter: blur(18px) saturate(140%)
-  -webkit-backdrop-filter: blur(18px) saturate(140%)
-  isolation: isolate
-
-  // 可爱高光 + 轻微纹理（不抢内容）
-  &::before
-    content: ''
-    position: absolute
-    inset: 0
-    z-index: 0
-    pointer-events: none
-    background: radial-gradient(circle at 18% 8%, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, 0) 45%),
-      radial-gradient(circle at 92% 0%, rgba(73, 177, 245, .22) 0%, rgba(73, 177, 245, 0) 52%),
-      linear-gradient(135deg, rgba(255, 164, 206, .10) 0%, rgba(255, 255, 255, 0) 38%, rgba(73, 177, 245, .08) 100%)
-    opacity: .85
-
-  > *
-    position: relative
-    z-index: 1
-
-  [data-theme='dark'] &
-    --ai-chat-glass-bg: rgba(20, 22, 26, .76)
-    --ai-chat-glass-border: rgba(255, 255, 255, .12)
-    --ai-chat-glass-shadow: 0 22px 70px rgba(0, 0, 0, .35)
-    --ai-chat-soft-pink: rgba(255, 118, 179, .12)
-    --ai-chat-soft-blue: rgba(73, 177, 245, .12)
-
-  &:hover
-    box-shadow: 0 22px 70px rgba(0, 0, 0, .22)
+  // 玻璃态效果
+  backdrop-filter: blur(20px)
+  -webkit-backdrop-filter: blur(20px)
 
   +maxWidth768()
-    // mobile: 参考微信/Telegram/ChatGPT 等主流方案
-    // 使用 dvh (dynamic viewport height) 适配移动端动态视口
+    // 移动端全屏布局
     position: fixed
     top: 0
     left: 0
     right: 0
     bottom: 0
     width: 100%
-    height: var(--ai-chat-height, 100dvh)
+    height: 100%
     max-width: none
     max-height: none
-    margin: 0
-    addBorderRadius(0, true)
-    // 禁用 transform 避免 iOS 键盘弹起时的抖动和局部放大
-    transform: none
-    // 使用内部容器控制圆角和边距
-    display: flex
-    flex-direction: column
-    // 在弹窗内容区外层添加安全边距
-    background: transparent
+    border-radius: 0
     box-shadow: none
-    border: none
     backdrop-filter: none
 
-    // 内部容器（玻璃拟态效果）
-    &::before
-      content: ''
-      position: absolute
-      inset: 0
-      addBorderRadius(18, true)
-      background: linear-gradient(135deg, var(--ai-chat-soft-pink), var(--ai-chat-soft-blue)), var(--ai-chat-glass-bg)
-      border: 1px solid var(--ai-chat-glass-border)
-      box-shadow: var(--ai-chat-glass-shadow)
-      backdrop-filter: blur(18px) saturate(140%)
-      -webkit-backdrop-filter: blur(18px) saturate(140%)
-      opacity: 1
+// 顶部横幅
+.ai-chat-banner
+  display: none
 
-  .ai-chat-nav
+  +maxWidth768()
     display: flex
-    justify-content: space-between
     align-items: center
-    padding: 14px 16px
-    background: rgba(255, 255, 255, .18)
-    color: var(--font-color)
-    font-size: 1.15em
-    line-height: 1
-    border-bottom: 1px solid rgba(255, 255, 255, .28)
-    backdrop-filter: blur(14px) saturate(135%)
-    -webkit-backdrop-filter: blur(14px) saturate(135%)
-
-    [data-theme='dark'] &
-      background: rgba(20, 22, 26, .35)
-      border-bottom-color: rgba(255, 255, 255, .10)
-
-    +maxWidth768()
-      padding: calc(12px + env(safe-area-inset-top)) 12px 12px
-      padding-left: calc(12px + env(safe-area-inset-left))
-      padding-right: calc(12px + env(safe-area-inset-right))
-
-    .ai-chat-title
-      font-weight: 600
-      letter-spacing: .2px
-      &::after
-        content: '  (ฅ´ω`ฅ)'
-        font-weight: 400
-        opacity: .75
-        font-size: .92em
-
-    .ai-chat-close-button
-      display: inline-flex
-      justify-content: center
-      align-items: center
-      width: 30px
-      height: 30px
-      border: none
-      background: rgba(255, 255, 255, .22)
-      color: var(--btn-color)
-      addBorderRadius(6)
-      @extend .btn-effects
-      backdrop-filter: blur(12px) saturate(135%)
-      -webkit-backdrop-filter: blur(12px) saturate(135%)
-
-      [data-theme='dark'] &
-        background: rgba(255, 255, 255, .10)
-
-      &:hover
-        background: rgba(255, 255, 255, .30)
-
-      +maxWidth768()
-        width: 34px
-        height: 34px
-
-  .ai-chat-body
-    display: flex
-    flex-direction: column
-    gap: 12px
-    padding: 12px 16px 16px
-    // 让内容区在弹窗里自适应剩余高度（移动端键盘弹起时也能跟随）
-    flex: 1
-    min-height: 0
-
-    +maxWidth768()
-      padding: 12px
-      padding-bottom: calc(12px + env(safe-area-inset-bottom))
-      padding-left: calc(12px + env(safe-area-inset-left))
-      padding-right: calc(12px + env(safe-area-inset-right))
-
-  .ai-chat-messages
-    flex: 1
-    min-height: 0
-    // 确保在 flex 容器里能正确收缩，从而出现滚动条
-    height: 0
-    padding: 10px 12px
-    background: rgba(255, 255, 255, .30)
-    border: 1px solid rgba(255, 255, 255, .32)
-    border-radius: 10px
-    overflow-x: hidden
-    overflow-y: auto
-    overscroll-behavior: contain
-    -webkit-overflow-scrolling: touch
-    backdrop-filter: blur(14px) saturate(135%)
-    -webkit-backdrop-filter: blur(14px) saturate(135%)
-
-    [data-theme='dark'] &
-      background: rgba(20, 22, 26, .35)
-      border-color: rgba(255, 255, 255, .12)
-
-  .ai-chat-form
-    display: flex
-    gap: 10px
-    align-items: center
-    margin: 0
-    padding: 8px
-    background: rgba(255, 255, 255, .26)
-    border: 1px solid rgba(255, 255, 255, .30)
-    addBorderRadius(10, true)
-    transition: border-color .2s ease, box-shadow .2s ease
-    backdrop-filter: blur(14px) saturate(135%)
-    -webkit-backdrop-filter: blur(14px) saturate(135%)
-
-    [data-theme='dark'] &
-      background: rgba(20, 22, 26, .32)
-      border-color: rgba(255, 255, 255, .12)
-
-    &:focus-within
-      border-color: rgba($theme-color, .45)
-      box-shadow: 0 0 0 3px rgba($theme-color, .16)
-
-  .ai-chat-input
-    flex: 1
-    height: 38px
-    padding: 0 10px
-    border: none
-    background: transparent
-    color: var(--font-color)
-    outline: none
-    -webkit-appearance: none
-    +maxWidth768()
-      // iOS: input 字号 < 16px 会自动放大页面
-      font-size: 16px
-
-    &::placeholder
-      color: var(--dark-grey)
-
-  .ai-chat-send
-    width: 42px
-    height: 38px
-    display: inline-flex
     justify-content: center
+    position: relative
+    height: 56px
+    background: #fff
+    padding-top: env(safe-area-inset-top, 0px)
+    padding-left: 16px
+    padding-right: 16px
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .1)
+    z-index: 10
+
+    // 移动端深色模式也保持一致
+    [data-theme='dark'] &
+      background: #fff
+
+.ai-chat-title
+  font-size: 1.2em
+  font-weight: 600
+  color: #1f2937
+  letter-spacing: 2px
+
+  [data-theme='dark'] &
+    color: #1f2937
+
+// 关闭按钮（在横幅右侧）
+.ai-chat-close-button
+  display: none
+
+  +maxWidth768()
+    display: flex
+    position: absolute
+    right: 16px
+    top: 50%
+    transform: translateY(-50%)
     align-items: center
-    background: var(--btn-bg)
-    color: var(--btn-color)
-    addBorderRadius(10)
-    @extend .btn-effects
-    flex-shrink: 0
-    flex-grow: 0
-    min-width: 42px
-    min-height: 38px
+    justify-content: center
+    width: 32px
+    height: 32px
+    border: none
+    border-radius: 50%
+    background: rgba(0, 0, 0, .08)
+    color: #666
+    cursor: pointer
+    transition: background .2s
 
     &:hover
-      background: var(--btn-hover-color)
-
-    &:focus-visible
-      outline: 2px solid rgba($theme-color, .45)
-      outline-offset: 2px
-
-    +maxWidth768()
-      width: 44px
-      height: 44px
-      min-width: 44px
-      min-height: 44px
-
-// message bubbles
-.ai-chat-msg
-  display: flex
-  flex-direction: column
-  align-items: flex-start
-  margin: 8px 0
-
-  .ai-chat-bubble
-    max-width: 85%
-    padding: 9px 12px
-    line-height: 1.6
-    white-space: pre-wrap
-    word-break: break-word
-    border: 1px solid var(--light-grey)
-    background: var(--card-bg)
-    color: var(--font-color)
-    addBorderRadius(12, true)
-    box-shadow: 0 2px 8px rgba(7, 17, 27, .06)
-
-.ai-chat-msg--user
-  align-items: flex-end
-
-  .ai-chat-bubble
-    border-color: rgba($theme-color, .22)
-    background: linear-gradient(135deg, rgba($theme-color, .16), rgba(255, 164, 206, .12))
-
-.ai-chat-msg--bot
-  align-items: flex-start
-
-  .ai-chat-bubble
-    background: rgba(255, 255, 255, .28)
-    border-color: rgba(255, 255, 255, .30)
-    color: var(--font-color)
+      background: rgba(0, 0, 0, .15)
 
     [data-theme='dark'] &
-      background: rgba(20, 22, 26, .32)
-      border-color: rgba(255, 255, 255, .12)
+      background: rgba(0, 0, 0, .08)
+      color: #666
 
-// citations (sources)
+      &:hover
+        background: rgba(0, 0, 0, .15)
+
+    i
+      font-size: 14px
+
+// 消息区域
+.ai-chat-body
+  display: flex
+  flex-direction: column
+  flex: 1
+  min-height: 0
+  padding: 12px
+
+  +maxWidth768()
+    padding: 0
+    padding-left: env(safe-area-inset-left, 16px)
+    padding-right: env(safe-area-inset-right, 16px)
+
+.ai-chat-messages
+  flex: 1
+  min-height: 0
+  overflow-y: auto
+  overflow-x: hidden
+  padding: 12px
+  // 使用透明背景，显示父容器的背景图
+  background: transparent
+  border-radius: 12px
+
+  [data-theme='dark'] &
+    background: transparent
+
+  +maxWidth768()
+    // 移动端透明背景，显示父容器的背景图
+    background: transparent
+    border-radius: 0
+    padding: 16px
+    padding-bottom: 0
+
+// 底部输入区域
+.ai-chat-input-wrap
+  display: flex
+  align-items: center
+  gap: 10px
+  padding: 12px 16px
+  // 玻璃态透明质感
+  background: rgba(255, 255, 255, .6)
+  backdrop-filter: blur(10px)
+  -webkit-backdrop-filter: blur(10px)
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, .05)
+
+  [data-theme='dark'] &
+    background: rgba(45, 45, 48, .6)
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, .2)
+
+  +maxWidth768()
+    // 移动端使用 fixed 定位，跟随键盘移动
+    display: flex
+    position: fixed
+    left: 0
+    right: 0
+    bottom: 0
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px))
+    transition: bottom 0s
+
+    // 移动端深色模式保持一致
+    [data-theme='dark'] &
+      background: rgba(45, 45, 48, .6)
+      box-shadow: 0 -1px 3px rgba(0, 0, 0, .2)
+
+.ai-chat-input
+  flex: 1
+  height: 40px
+  padding: 0 14px
+  border: none
+  border-radius: 20px
+  background: rgba(243, 244, 246, .8)
+  backdrop-filter: blur(10px)
+  color: #1f2937
+  font-size: 16px
+  outline: none
+
+  [data-theme='dark'] &
+    background: rgba(61, 61, 61, .8)
+    color: #e5e5e5
+
+  &::placeholder
+    color: #9ca3af
+
+  +maxWidth768()
+    // iOS 输入框字体至少 16px 防止自动缩放
+    font-size: 16px
+
+.ai-chat-send-btn
+  display: flex
+  align-items: center
+  justify-content: center
+  width: 40px
+  height: 40px
+  border: none
+  border-radius: 50%
+  // 主题色按钮
+  background: rgba(252, 74, 71, .9)
+  color: #fff
+  cursor: pointer
+  transition: transform .1s, opacity .2s, background .2s
+
+  &:active
+    transform: scale(.95)
+
+  &:disabled
+    opacity: .5
+    cursor: not-allowed
+
+  [data-theme='dark'] &
+    background: rgba(252, 74, 71, .9)
+    color: #fff
+
+  +maxWidth768()
+    [data-theme='dark'] &
+      background: rgba(252, 74, 71, .9)
+      color: #fff
+
+  i
+    font-size: 16px
+
+// 消息气泡
+.ai-chat-msg
+  margin: 10px 0
+
+.ai-chat-bubble
+  max-width: 85%
+  min-height: 20px
+  padding: 10px 14px
+  line-height: 1.5
+  white-space: pre-wrap
+  word-break: break-word
+  border-radius: 16px
+  // 玻璃态透明质感
+  background: rgba(255, 255, 255, .7)
+  backdrop-filter: blur(10px)
+  -webkit-backdrop-filter: blur(10px)
+  color: #1f2937
+  border-bottom-left-radius: 4px
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .08)
+  // 初始隐藏，流式输出时显示
+  opacity: 0
+  transition: opacity .2s
+
+  &.visible
+    opacity: 1
+
+  [data-theme='dark'] &
+    background: rgba(45, 45, 48, .7)
+    backdrop-filter: blur(10px)
+    color: #e5e5e5
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .3)
+
+.ai-chat-msg--user
+  .ai-chat-bubble
+    margin-left: auto
+    // 透明磨砂质感，与机器人消息风格统一
+    background: rgba(255, 255, 255, .7)
+    backdrop-filter: blur(10px)
+    -webkit-backdrop-filter: blur(10px)
+    color: #1f2937
+    border-bottom-right-radius: 4px
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08)
+    opacity: 1
+
+  [data-theme='dark'] &
+    .ai-chat-bubble
+      background: rgba(45, 45, 48, .7)
+      backdrop-filter: blur(10px)
+      color: #e5e5e5
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .3)
+
+// 引用来源（无气泡背景）
 .ai-chat-citations
   margin-top: 10px
-  padding: 8px 10px
-  border: 1px dashed var(--light-grey)
-  background: var(--card-bg)
-  addBorderRadius(10, true)
+  padding: 10px 12px
+  border: 1px dashed var(--brand-3, #fec9c8)
+  border-radius: 10px
+  font-size: .9em
+  // 移除淡白色气泡背景，使用透明背景
 
-  &__summary
+  [data-theme='dark'] &
+    border-color: rgba(255, 255, 255, .2)
+
+  summary
     cursor: pointer
-    font-weight: 600
-    font-size: .95em
-    color: var(--font-color)
+    font-weight: 500
     user-select: none
+    color: var(--brand-1, #fc4a47)
 
-  &[open]
-    .ai-chat-citations__summary
-      margin-bottom: 8px
+    [data-theme='dark'] &
+      color: #fc4a47
 
   &__list
-    margin: 0
-    padding-left: 18px
+    margin: 8px 0 0
+    padding-left: 20px
 
   &__item
     margin: 6px 0
 
-  &__row
-    display: flex
-    align-items: center
-    justify-content: space-between
-    gap: 10px
-
   &__link
-    display: inline-block
-    color: var(--theme-color)
+    color: var(--brand-2, #fc636b)
     text-decoration: none
     word-break: break-word
-    flex: 1
-    min-width: 0
 
     &:hover
       text-decoration: underline
 
-#ai-chat-mask
+    [data-theme='dark'] &
+      color: #fc636b
+
+// 浮动按钮（备用方案）
+.ai-chat-float-btn
   position: fixed
-  top: 0
-  right: 0
-  bottom: 0
-  left: 0
-  z-index: 1000
-  display: none
-  background: linear-gradient(135deg, rgba(0, 0, 0, .22), rgba(0, 0, 0, .35))
-  backdrop-filter: blur(6px) saturate(115%)
-  -webkit-backdrop-filter: blur(6px) saturate(115%)
+  right: 16px
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px))
+  z-index: 1002
+  display: flex
+  align-items: center
+  justify-content: center
+  width: 48px
+  height: 48px
+  border: none
+  border-radius: 50%
+  background: var(--brand-1, #fc4a47)
+  color: #fff
+  cursor: pointer
+  box-shadow: 0 4px 12px rgba(252, 74, 71, .4)
+  -webkit-tap-highlight-color: transparent
+  transition: transform .2s, box-shadow .2s
 
-  [data-theme='dark'] &
-    background: linear-gradient(135deg, rgba(0, 0, 0, .38), rgba(0, 0, 0, .58))
-
-  +maxWidth768()
-    // 移动端全屏遮罩
-    background: rgba(0, 0, 0, .45)
+  &:active
+    transform: scale(.95)
+    box-shadow: 0 2px 8px rgba(252, 74, 71, .4)
 
 @media (prefers-reduced-motion: reduce)
   #ai-chat-dialog
     transition: none
   #ai-chat-mask
     transition: none
-
-// fallback launcher button (when Butterfly rightside is unavailable)
-.ai-chat-float-btn
-  position: fixed
-  right: 16px
-  bottom: calc(16px + env(safe-area-inset-bottom))
-  z-index: 1002
-  width: 44px
-  height: 44px
-  display: inline-flex
-  align-items: center
-  justify-content: center
-  border: none
-  background: var(--theme-color)
-  color: #fff
-  border-radius: 999px
-  box-shadow: 0 8px 22px rgba(0, 0, 0, .18)
-  opacity: .95
-  cursor: pointer
-  -webkit-tap-highlight-color: transparent
-
-  &:active
-    transform: translateY(1px)
-
-  &:focus-visible
-    outline: 3px solid rgba($theme-color, .35)
-    outline-offset: 3px

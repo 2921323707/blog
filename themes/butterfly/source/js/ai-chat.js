@@ -1,136 +1,48 @@
 (() => {
+  // API 基础配置
   const getApiBase = () => {
-    const { origin, hostname, port } = window.location
+    const { hostname, port } = window.location
 
-    // 本地开发：Hexo(4000) + Flask(5000)
+    // 本地开发环境
     if ((hostname === 'localhost' || hostname === '127.0.0.1') && port && port !== '5000') {
       return `http://${hostname}:5000/api`
     }
 
-    // file:// 或某些环境下 origin 可能是 "null"
-    if (!origin || origin === 'null') return 'http://localhost:5000/api'
-
-    // 生产/同源：走当前站点的 HTTPS，再由 Nginx 反代到 Flask(5000)
-    return `${origin}/api`
+    // 生产环境走同源
+    return `${window.location.origin}/api`
   }
 
   const API_BASE = getApiBase()
 
-  const SELECTORS = {
-    dialog: '#ai-chat-dialog',
-    mask: '#ai-chat-mask',
-    close: '#ai-chat-close',
-    form: '#ai-chat-form',
-    input: '#ai-chat-input',
-    send: '#ai-chat-send',
-    messages: '#ai-chat-messages'
+  // 缓存 DOM 查询结果
+  const cache = {
+    dialog: null,
+    mask: null,
+    close: null,
+    messages: null,
+    input: null,
+    sendBtn: null,
+    btn: null,
+    initialized: false
   }
 
-  const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 768px)').matches
-
-  // 移动端键盘弹起时：参考微信/Telegram 方案，使用 visualViewport 适配
-  const updateMobileViewportVars = (dialogEl) => {
-    const dialog = dialogEl || document.querySelector(SELECTORS.dialog)
-    if (!dialog) return
-
-    // 只在移动端启用，避免影响桌面端定位（右下角悬浮）
-    if (!isMobile()) {
-      dialog.style.removeProperty('--ai-chat-height')
-      return
-    }
-
-    // 使用 visualViewport API（支持现代浏览器）
-    // 参考：微信小程序、Telegram、ChatGPT 的移动端适配方案
-    const vv = window.visualViewport
-
-    if (vv) {
-      // 获取动态视口高度（排除键盘）
-      const dvh = vv.height
-      // 设置 CSS 变量，配合 dvh 使用
-      dialog.style.setProperty('--ai-chat-height', `${dvh}px`)
-    } else {
-      // 降级方案：使用 innerHeight
-      dialog.style.setProperty('--ai-chat-height', `${window.innerHeight}px`)
-    }
-  }
-
-  const ensureLauncherButton = () => {
-    let btn = document.getElementById('ai-chat-btn')
-    if (btn) return btn
-
-    // Prefer adding into Butterfly rightside toolbar for consistent UI
-    const rightsideShow = document.querySelector('#rightside #rightside-config-show')
-    btn = document.createElement('button')
-    btn.id = 'ai-chat-btn'
-    btn.type = 'button'
-    btn.title = '看板娘'
-    btn.innerHTML = '<i class="fas fa-robot" aria-hidden="true"></i>'
-
-    if (rightsideShow) {
-      // Insert above "go-up" if possible
-      const goUp = document.getElementById('go-up')
-      if (goUp && goUp.parentElement === rightsideShow) {
-        rightsideShow.insertBefore(btn, goUp)
-      } else {
-        rightsideShow.appendChild(btn)
-      }
-      return btn
-    }
-
-    // Fallback: on some mobile layouts rightside may be unavailable
-    btn.className = 'ai-chat-float-btn'
-    document.body.appendChild(btn)
-    return btn
-  }
-
-  const animateIn = (el, animation) => {
-    if (!el) return
-    if (window.btf && typeof window.btf.animateIn === 'function') {
-      window.btf.animateIn(el, animation)
-    } else {
-      el.style.display = 'block'
-    }
-  }
-
-  const animateOut = (el, animation) => {
-    if (!el) return
-    if (window.btf && typeof window.btf.animateOut === 'function') {
-      window.btf.animateOut(el, animation)
-      // 确保 btf 动画完成后真正隐藏元素
-      setTimeout(() => {
-        el.style.display = 'none'
-      }, 500)
-    } else {
-      el.style.display = 'none'
-    }
-  }
-
-  const lockScroll = () => {
-    if (window.btf?.overflowPaddingR?.add) return window.btf.overflowPaddingR.add()
-    document.body.style.overflow = 'hidden'
-  }
-
-  const unlockScroll = () => {
-    if (window.btf?.overflowPaddingR?.remove) return window.btf.overflowPaddingR.remove()
-    document.body.style.overflow = ''
-  }
-
-  const safeText = (v) => (v == null ? '' : String(v))
-
-  const isNearBottom = (el, threshold = 120) => {
-    if (!el) return true
-    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
-  }
-
+  // 滚动到底部
   const scrollToBottom = (el) => {
     if (!el) return
     el.scrollTop = el.scrollHeight
   }
 
-  const appendMsg = (container, role, text) => {
+  // 是否接近底部
+  const isNearBottom = (el, threshold = 100) => {
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+  }
+
+  // 追加用户消息
+  const appendUserMsg = (container, text) => {
     const stick = isNearBottom(container)
     const item = document.createElement('div')
-    item.className = `ai-chat-msg ai-chat-msg--${role}`
+    item.className = 'ai-chat-msg ai-chat-msg--user'
 
     const bubble = document.createElement('div')
     bubble.className = 'ai-chat-bubble'
@@ -139,34 +51,51 @@
     item.appendChild(bubble)
     container.appendChild(item)
     if (stick) scrollToBottom(container)
-    return item
   }
 
-  const appendBotMsgWithCitations = (container, text, citations) => {
+  // 创建机器人消息元素（用于流式输出）
+  const createBotMsg = (container) => {
     const stick = isNearBottom(container)
     const item = document.createElement('div')
     item.className = 'ai-chat-msg ai-chat-msg--bot'
 
     const bubble = document.createElement('div')
     bubble.className = 'ai-chat-bubble'
-    bubble.textContent = safeText(text)
+    // 初始隐藏，收到第一帧数据后显示
+    bubble.style.opacity = '0'
+    item.appendChild(bubble)
+
+    container.appendChild(item)
+    if (stick) scrollToBottom(container)
+
+    return { item, bubble, stick }
+  }
+
+  // 追加机器人消息
+  const appendBotMsg = (container, text, citations = []) => {
+    const stick = isNearBottom(container)
+    const item = document.createElement('div')
+    item.className = 'ai-chat-msg ai-chat-msg--bot'
+
+    const bubble = document.createElement('div')
+    bubble.className = 'ai-chat-bubble'
+    bubble.textContent = text
 
     item.appendChild(bubble)
 
-    const cites = Array.isArray(citations) ? citations : []
-    if (cites.length) {
+    // 添加引用来源
+    if (citations.length > 0) {
       const citeWrap = document.createElement('details')
       citeWrap.className = 'ai-chat-citations'
 
       const summary = document.createElement('summary')
-      summary.className = 'ai-chat-citations__summary'
-      summary.textContent = `引用来源（${cites.length}）`
+      summary.textContent = `引用来源（${citations.length}）`
       citeWrap.appendChild(summary)
 
       const list = document.createElement('ol')
       list.className = 'ai-chat-citations__list'
 
-      cites.forEach((c) => {
+      citations.forEach(c => {
         const li = document.createElement('li')
         li.className = 'ai-chat-citations__item'
 
@@ -175,14 +104,13 @@
 
         const a = document.createElement('a')
         a.className = 'ai-chat-citations__link'
-        a.href = safeText(c?.url)
+        a.href = c?.url || '#'
         a.target = '_blank'
         a.rel = 'noopener noreferrer'
-        a.textContent = safeText(c?.title || c?.url || '来源')
+        a.textContent = c?.title || c?.url || '来源'
+
         row.appendChild(a)
-
         li.appendChild(row)
-
         list.appendChild(li)
       })
 
@@ -192,252 +120,340 @@
 
     container.appendChild(item)
     if (stick) scrollToBottom(container)
-    return item
   }
 
-  const setAriaHidden = (el, hidden) => {
-    if (!el) return
-    el.setAttribute('aria-hidden', hidden ? 'true' : 'false')
-  }
+  // 打开对话框
+  const openDialog = () => {
+    const { dialog, mask, messages, input } = cache
+    if (!dialog || dialog.style.display === 'flex') return
 
-  const show = ({ dialog, mask, input, messages }) => {
-    // 防止重复显示 - 检查关闭标记和显示状态
-    if (dialog && (dialog.dataset.isClosing === '1' || dialog.style.display !== 'none')) return
+    dialog.style.display = 'flex'
+    mask.style.display = 'block'
+    dialog.setAttribute('aria-hidden', 'false')
+    mask.setAttribute('aria-hidden', 'false')
 
-    // 清除关闭标记
-    if (dialog) delete dialog.dataset.isClosing
-
-    animateIn(dialog, 'to_show 0.5s')
-    animateIn(mask, 'to_show 0.5s')
-    // 保证 flex 布局生效（消息区/输入区才能正确占满并滚动）
-    if (dialog) dialog.style.display = 'flex'
-    if (mask) mask.style.display = 'block'
-    setAriaHidden(dialog, false)
-    setAriaHidden(mask, false)
-    lockScroll()
-    updateMobileViewportVars(dialog)
-
-    // 首次打开：给一个轻量引导，增强"可用性认知"
-    if (messages && messages.children.length === 0 && messages.dataset.greeted !== '1') {
+    // 首次打开显示欢迎语
+    if (messages && messages.children.length === 0 && !messages.dataset.greeted) {
       messages.dataset.greeted = '1'
-      appendMsg(messages, 'bot', '你好，我是嘟嘟可。你可以直接问我"这篇文章讲了什么/某个概念在哪里提到/推荐相关阅读"等。')
+      appendBotMsg(messages, '你好，我是嘟嘟可。你可以直接问我"这篇文章讲了什么/某个概念在哪里提到/推荐相关阅读"等。')
     }
 
-    input && input.focus()
-    // 移动端键盘弹出可能有延迟，延迟更新确保高度正确
-    // 添加检查，确保对话框仍然处于打开状态
-    const scheduleUpdate = () => {
-      setTimeout(() => {
-        if (dialog.style.display !== 'none' && dialog.dataset.isClosing !== '1') {
-          updateMobileViewportVars(dialog)
-        }
-      }, 100)
+    // 移动端聚焦输入框
+    if (input) {
+      setTimeout(() => input.focus(), 100)
     }
-    const scheduleUpdateLong = () => {
-      setTimeout(() => {
-        if (dialog.style.display !== 'none' && dialog.dataset.isClosing !== '1') {
-          updateMobileViewportVars(dialog)
-        }
-      }, 300)
-    }
-    scheduleUpdate()
-    scheduleUpdateLong()
   }
 
-  const hide = ({ dialog, mask, input, send }) => {
-    // 防止重复隐藏 - 检查关闭标记和显示状态
-    if (dialog && (dialog.dataset.isClosing === '1' || dialog.style.display === 'none')) return
+  // 关闭对话框
+  const closeDialog = () => {
+    const { dialog, mask, input } = cache
+    if (!dialog || dialog.style.display === 'none') return
 
-    // 设置关闭标记，防止异步事件再次显示
-    if (dialog) dialog.dataset.isClosing = '1'
-
-    // 先 blur input，防止 blur 事件在关闭标记设置后触发
-    input && input.blur()
-
-    // 立即设置 display 为 none，防止动画导致的再次显示
-    if (dialog) dialog.style.display = 'none'
-    if (mask) mask.style.display = 'none'
-
-    animateOut(dialog, 'to_hide 0.5s')
-    animateOut(mask, 'to_hide 0.5s')
-    setAriaHidden(dialog, true)
-    setAriaHidden(mask, true)
-    unlockScroll()
-    updateMobileViewportVars(dialog)
-    if (send) send.disabled = false
-
-    // 延迟清除关闭标记，确保所有异步事件处理完成
-    setTimeout(() => {
-      if (dialog) delete dialog.dataset.isClosing
-    }, 600)
-  }
-
-  const bindOnce = () => {
-    const dialog = document.querySelector(SELECTORS.dialog)
-    const mask = document.querySelector(SELECTORS.mask)
-    const close = document.querySelector(SELECTORS.close)
-    const form = document.querySelector(SELECTORS.form)
-    const input = document.querySelector(SELECTORS.input)
-    const send = document.querySelector(SELECTORS.send)
-    const messages = document.querySelector(SELECTORS.messages)
-
-    if (!dialog || !mask || !form || !input || !messages) return
-    if (dialog.dataset.bound === '1') return
-    dialog.dataset.bound = '1'
-
-    // Initial state
     dialog.style.display = 'none'
     mask.style.display = 'none'
-    setAriaHidden(dialog, true)
-    setAriaHidden(mask, true)
+    dialog.setAttribute('aria-hidden', 'true')
+    mask.setAttribute('aria-hidden', 'true')
 
-    // 键盘/地址栏变化会改变 visual viewport；只绑定一次即可
-    const bindViewportOnce = () => {
-      if (dialog.dataset.vvBound === '1') return
-      dialog.dataset.vvBound = '1'
-
-      const onChange = () => {
-        // 只有打开时才需要频繁更新，同时检查关闭标记
-        if (dialog.style.display === 'none' || dialog.dataset.isClosing === '1') return
-        updateMobileViewportVars(dialog)
-      }
-
-      const vv = window.visualViewport
-      if (vv) {
-        // 监听 visualViewport 变化事件
-        vv.addEventListener('resize', onChange, { passive: true })
-        vv.addEventListener('scroll', onChange, { passive: true })
-      }
-
-      // 降级：监听窗口变化
-      window.addEventListener('orientationchange', () => {
-        // 只有打开且不在关闭过程中时才更新
-        if (dialog.style.display === 'none' || dialog.dataset.isClosing === '1') return
-        setTimeout(() => {
-          updateMobileViewportVars(dialog)
-          // 横竖屏切换后，滚动到消息底部
-          if (messages) scrollToBottom(messages)
-        }, 150)
-      })
-
-      window.addEventListener('resize', () => {
-        setTimeout(onChange, 100)
-      })
-
-      // 键盘弹出/收起时的处理
-      if (input) {
-        input.addEventListener('focus', () => {
-          setTimeout(onChange, 50)
-        }, { passive: true })
-
-        input.addEventListener('blur', () => {
-          setTimeout(onChange, 100)
-        }, { passive: true })
-      }
-
-      // 首次也更新一次（避免初始高度取错）
-      updateMobileViewportVars(dialog)
-    }
-
-    bindViewportOnce()
-
-    const btn = ensureLauncherButton()
-
-    let sending = false
-    let inFlight = null
-
-    const setSending = (v) => {
-      sending = v
-      if (input) input.disabled = v
-      if (send) send.disabled = v
-    }
-
-    const abortInFlight = () => {
-      if (!inFlight) return
-      try {
-        inFlight.abort()
-      } catch (_) {}
-      inFlight = null
-    }
-
-    const onOpen = () => show({ dialog, mask, input, messages })
-    const onClose = () => {
-      abortInFlight()
-      setSending(false)
-      if (messages) {
-        messages.querySelectorAll('[data-loading="1"]').forEach((el) => el.remove())
-      }
-      hide({ dialog, mask, input, send })
-    }
-
-    const addListener = (el, evt, fn, opt) => {
-      if (!el) return
-      if (window.btf && typeof window.btf.addEventListenerPjax === 'function') {
-        window.btf.addEventListenerPjax(el, evt, fn, opt || false)
-      } else {
-        el.addEventListener(evt, fn, opt || false)
-      }
-    }
-
-    addListener(btn, 'click', onOpen)
-    addListener(close, 'click', onClose)
-    addListener(mask, 'click', onClose)
-
-    addListener(window, 'keydown', (e) => {
-      if (e.key !== 'Escape') return
-      // 检查对话框是否已关闭或正在关闭
-      if (dialog.style.display === 'none' || dialog.dataset.isClosing === '1') return
-      onClose()
-    })
-
-    addListener(form, 'submit', async (e) => {
-      e.preventDefault()
-      if (sending) return
-      const q = (input.value || '').trim()
-      if (!q) return
-
-      input.value = ''
-      appendMsg(messages, 'user', q)
-      const loadingEl = appendMsg(messages, 'bot', '思考中…')
-      if (loadingEl) loadingEl.dataset.loading = '1'
-      setSending(true)
-
-      try {
-        abortInFlight()
-        inFlight = new AbortController()
-        const resp = await fetch(`${API_BASE}/ai/mascot/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, page_url: window.location.href }),
-          signal: inFlight.signal
-        })
-
-        const result = await resp.json()
-        if (!resp.ok || result.errno !== 0) {
-          const msg = result?.errmsg || `请求失败（HTTP ${resp.status}）`
-          loadingEl && loadingEl.remove()
-          appendMsg(messages, 'bot', `出错了：${msg}`)
-          return
-        }
-
-        const answer = result?.data?.answer || ''
-        const citations = result?.data?.citations || []
-        loadingEl && loadingEl.remove()
-        appendBotMsgWithCitations(messages, answer || '（没有返回内容）', citations)
-      } catch (err) {
-        if (err?.name === 'AbortError') {
-          loadingEl && loadingEl.remove()
-          return
-        }
-        loadingEl && loadingEl.remove()
-        appendMsg(messages, 'bot', `出错了：${err?.message || String(err)}`)
-      } finally {
-        inFlight = null
-        setSending(false)
-      }
-    })
+    input?.blur()
   }
 
-  document.addEventListener('DOMContentLoaded', bindOnce)
-  document.addEventListener('pjax:complete', bindOnce)
+  // 发送消息
+  const sendMessage = async () => {
+    const { input, sendBtn, messages } = cache
+    if (!input || !sendBtn) return
+
+    const text = input.value.trim()
+    if (!text || sendBtn.disabled) return
+
+    input.value = ''
+    appendUserMsg(messages, text)
+
+    sendBtn.disabled = true
+
+    // 创建空的机器人消息容器用于流式输出
+    const { item, bubble } = createBotMsg(messages)
+
+    try {
+      const resp = await fetch(`${API_BASE}/ai/mascot/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: text, page_url: window.location.href, stream: true })
+      })
+
+      if (!resp.ok) {
+        const errorText = await resp.text()
+        bubble.textContent = `出错了：${errorText || '请求失败'}`
+        return
+      }
+
+      // 使用 ReadableStream 进行流式读取
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let citations = []
+      let hasContent = false
+
+      // 读取流数据
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        // 按行处理数据
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+
+          try {
+            const data = JSON.parse(line.slice(6))
+            console.log('[AI Chat] 收到数据:', data)
+
+            // 处理引用来源数据
+            if (data.type === 'citations' && data.citations) {
+              citations = data.citations
+              continue
+            }
+
+            // 处理文本内容
+            if (data.type === 'content' && data.text) {
+              // 收到第一帧数据时显示气泡
+              if (!hasContent) {
+                bubble.style.opacity = '1'
+              }
+              bubble.textContent += data.text
+              hasContent = true
+              scrollToBottom(messages)
+            }
+
+            // 处理结束信号
+            if (data.type === 'done') {
+              // 添加引用来源
+              if (citations.length > 0) {
+                const citeWrap = document.createElement('details')
+                citeWrap.className = 'ai-chat-citations'
+
+                const summary = document.createElement('summary')
+                summary.textContent = `引用来源（${citations.length}）`
+                citeWrap.appendChild(summary)
+
+                const list = document.createElement('ol')
+                list.className = 'ai-chat-citations__list'
+
+                citations.forEach(c => {
+                  const li = document.createElement('li')
+                  li.className = 'ai-chat-citations__item'
+
+                  const row = document.createElement('div')
+                  row.className = 'ai-chat-citations__row'
+
+                  const a = document.createElement('a')
+                  a.className = 'ai-chat-citations__link'
+                  a.href = c?.url || '#'
+                  a.target = '_blank'
+                  a.rel = 'noopener noreferrer'
+                  a.textContent = c?.title || c?.url || '来源'
+
+                  row.appendChild(a)
+                  li.appendChild(row)
+                  list.appendChild(li)
+                })
+
+                citeWrap.appendChild(list)
+                item.appendChild(citeWrap)
+                scrollToBottom(messages)
+              }
+              return
+            }
+          } catch (e) {
+            console.log('[AI Chat] 解析错误:', e, line)
+          }
+        }
+      }
+
+      // 如果没有收到任何内容，显示提示
+      if (!hasContent && !bubble.textContent) {
+        bubble.textContent = '（没有收到回复）'
+      }
+
+      // 添加引用来源（如果有）
+      if (citations.length > 0) {
+        const citeWrap = document.createElement('details')
+        citeWrap.className = 'ai-chat-citations'
+
+        const summary = document.createElement('summary')
+        summary.textContent = `引用来源（${citations.length}）`
+        citeWrap.appendChild(summary)
+
+        const list = document.createElement('ol')
+        list.className = 'ai-chat-citations__list'
+
+        citations.forEach(c => {
+          const li = document.createElement('li')
+          li.className = 'ai-chat-citations__item'
+
+          const row = document.createElement('div')
+          row.className = 'ai-chat-citations__row'
+
+          const a = document.createElement('a')
+          a.className = 'ai-chat-citations__link'
+          a.href = c?.url || '#'
+          a.target = '_blank'
+          a.rel = 'noopener noreferrer'
+          a.textContent = c?.title || c?.url || '来源'
+
+          row.appendChild(a)
+          li.appendChild(row)
+          list.appendChild(li)
+        })
+
+        citeWrap.appendChild(list)
+        item.appendChild(citeWrap)
+        scrollToBottom(messages)
+      }
+    } catch (err) {
+      console.log('[AI Chat] 错误:', err)
+      bubble.textContent = `出错了：${err?.message || String(err)}`
+    } finally {
+      sendBtn.disabled = false
+    }
+  }
+
+  // 更新输入框位置（跟随键盘）
+  const updateInputPosition = () => {
+    const { input: inputWrap } = cache
+    if (!inputWrap) return
+
+    // 使用 visualViewport API 获取实际视口高度
+    const vv = window.visualViewport
+    if (vv) {
+      const offset = window.innerHeight - vv.height
+      inputWrap.style.bottom = `${Math.max(0, offset)}px`
+    }
+  }
+
+  // 初始化事件绑定
+  const initEvents = () => {
+    if (cache.initialized) return
+    cache.initialized = true
+
+    const { dialog, mask, close, input, sendBtn, btn } = cache
+    if (!dialog || !mask) return
+
+    // 初始隐藏状态
+    dialog.style.display = 'none'
+    mask.style.display = 'none'
+
+    // 按钮点击
+    btn?.addEventListener('click', openDialog)
+    close?.addEventListener('click', closeDialog)
+    mask?.addEventListener('click', closeDialog)
+
+    // 输入框事件
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        sendMessage()
+      }
+    })
+
+    // 发送按钮点击
+    sendBtn?.addEventListener('click', sendMessage)
+
+    // ESC 键关闭
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && dialog.style.display === 'flex') {
+        closeDialog()
+      }
+    })
+
+    // 键盘事件监听（0延迟）
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateInputPosition, { passive: true })
+      window.visualViewport.addEventListener('scroll', updateInputPosition, { passive: true })
+    }
+
+    // 兼容旧浏览器
+    window.addEventListener('resize', updateInputPosition)
+  }
+
+  // 查找或创建按钮
+  const ensureButton = () => {
+    let btn = document.getElementById('ai-chat-btn')
+    if (btn) {
+      cache.btn = btn
+      return btn
+    }
+
+    const rightside = document.querySelector('#rightside #rightside-config-show')
+    btn = document.createElement('button')
+    btn.id = 'ai-chat-btn'
+    btn.type = 'button'
+    btn.title = '看板娘'
+    btn.innerHTML = '<i class="fas fa-robot" aria-hidden="true"></i>'
+
+    if (rightside) {
+      const goUp = document.getElementById('go-up')
+      if (goUp && goUp.parentElement === rightside) {
+        rightside.insertBefore(btn, goUp)
+      } else {
+        rightside.appendChild(btn)
+      }
+    } else {
+      btn.className = 'ai-chat-float-btn'
+      document.body.appendChild(btn)
+    }
+
+    cache.btn = btn
+    return btn
+  }
+
+  // 设置对话框背景图片
+  const setBackgroundImage = () => {
+    const dialog = cache.dialog
+    if (!dialog) return
+
+    // 获取背景图片列表
+    const bgImages = ['1.jpg']
+
+    // 随机选择一张图片
+    const randomBg = bgImages[Math.floor(Math.random() * bgImages.length)]
+
+    // 设置背景图片
+    dialog.style.backgroundImage = `url('/img/chat_bc/${randomBg}')`
+  }
+
+  // 初始化入口
+  const init = () => {
+    // 缓存所有元素
+    cache.dialog = document.getElementById('ai-chat-dialog')
+    cache.mask = document.getElementById('ai-chat-mask')
+    cache.close = document.getElementById('ai-chat-close')
+    cache.messages = document.getElementById('ai-chat-messages')
+    cache.input = document.querySelector('.ai-chat-input')
+    cache.sendBtn = document.querySelector('.ai-chat-send-btn')
+
+    // 设置背景图片
+    setBackgroundImage()
+
+    ensureButton()
+    initEvents()
+  }
+
+  // DOM 加载完成后初始化
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init)
+  } else {
+    init()
+  }
+
+  // PJAX 加载完成后重新初始化
+  document.addEventListener('pjax:complete', () => {
+    cache.initialized = false
+    cache.dialog = null
+    cache.mask = null
+    init()
+  })
 })()

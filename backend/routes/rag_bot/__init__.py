@@ -1,21 +1,157 @@
-import os
+import json
+import traceback
 from datetime import datetime
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 
 from .rag_store import load_rag_config, reindex_posts, retrieve, upsert_post, get_citation_detail
 
 bp = Blueprint('rag_bot', __name__)
 
 
+def stream_mascot_chat(data):
+    """看板娘聊天流式生成器（RAG：向量检索 + 引用来源）"""
+    print('[AI Chat Stream] 函数被调用')
+
+    try:
+        question = (data.get('question') or '').strip()
+        print(f'[AI Chat Stream] 问题: {question[:50]}...' if len(question) > 50 else f'[AI Chat Stream] 问题: {question}')
+
+        if not question:
+            yield 'data: {"type": "error", "message": "question 不能为空"}\n\n'
+            return
+
+        cfg = load_rag_config()
+        top_k = max(1, int(cfg.retrieve_k))
+        cand_k = max(top_k, int(cfg.retrieve_candidate_k))
+
+        # 检索
+        hits = retrieve(
+            cfg,
+            question,
+            k=top_k,
+            candidate_k=cand_k,
+            max_distance=cfg.retrieve_max_distance,
+            per_post_max=cfg.retrieve_per_post_max,
+        )
+
+        citations = []
+        numbered_context = []
+        total_ctx = 0
+        idx = 0
+        for h in hits:
+            url = (h.get("url") or "").strip()
+            post_id = (h.get("post_id") or "").strip()
+            chunk = h.get("chunk")
+
+            content = (h.get("content") or "").strip()
+            if cfg.max_chunk_chars and len(content) > cfg.max_chunk_chars:
+                content = content[: cfg.max_chunk_chars].rstrip() + "…"
+
+            next_id = idx + 1
+            block = f"[{next_id}] {h.get('title') or ''}\nURL: {url}\n内容：{content}"
+            if cfg.max_context_chars and (total_ctx + len(block)) > cfg.max_context_chars:
+                break
+
+            idx = next_id
+            citations.append({
+                "id": idx,
+                "title": h.get("title") or "",
+                "url": url,
+                "post_id": post_id,
+                "chunk": chunk,
+                "distance": h.get("distance"),
+            })
+            numbered_context.append(block)
+            total_ctx += len(block)
+
+        # 先发送引用来源
+        if citations:
+            citations_data = json.dumps({"type": "citations", "citations": citations})
+            print(f'[AI Chat Stream] 发送 citations: {len(citations)} 条')
+            yield f'data: {citations_data}\n\n'
+        else:
+            print('[AI Chat Stream] 没有引用来源')
+
+        # 生成回答（DeepSeek / OpenAI，均为 OpenAI SDK 调用方式）
+        from openai import OpenAI
+
+        if cfg.chat_provider == "deepseek":
+            if not cfg.deepseek_api_key:
+                yield 'data: {"type": "error", "message": "未配置 DEEPSEEK_API_KEY。请在 backend/.env 中设置 DEEPSEEK_API_KEY=xxx"}\n\n'
+                return
+            client = OpenAI(api_key=cfg.deepseek_api_key, base_url=cfg.chat_base_url)
+        else:
+            if not cfg.openai_api_key:
+                yield 'data: {"type": "error", "message": "RAG_CHAT_PROVIDER=openai 但未配置 OPENAI_API_KEY。"}\n\n'
+                return
+            client = OpenAI(api_key=cfg.openai_api_key)
+        system = cfg.chat_system_prompt
+        user = (
+            f"问题：{question}\n\n"
+            f"引用资料（可引用编号）：\n\n" + "\n\n".join(numbered_context)
+        )
+
+        print(f'[AI Chat Stream] 开始调用 AI，model: {cfg.chat_model}')
+
+        # 流式调用
+        resp = client.chat.completions.create(
+            model=cfg.chat_model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.2,
+            stream=True,
+        )
+
+        chunk_count = 0
+        for chunk in resp:
+            chunk_count += 1
+            content = chunk.choices[0].delta.content or ""
+            print(f'[AI Chat Stream] 收到 chunk {chunk_count}: "{content[:50]}..."' if len(content) > 50 else f'[AI Chat Stream] 收到 chunk {chunk_count}: "{content}"')
+            if content:
+                data = json.dumps({"type": "content", "text": content})
+                yield f'data: {data}\n\n'
+
+        print(f'[AI Chat Stream] 完成，共 {chunk_count} 个 chunks')
+        # 发送结束信号
+        yield 'data: {"type": "done"}\n\n'
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f'[AI Chat Stream Error] {traceback.format_exc()}')
+        yield f'data: {{"type": "error", "message": "AI 服务异常: {error_msg}"}}\n\n'
+
+
 @bp.route('/ai/mascot/chat', methods=['POST'])
 def mascot_chat():
     """看板娘聊天（RAG：向量检索 + 引用来源）"""
+    print('[AI Chat] mascot_chat 被调用')
+
     try:
         if not request.is_json:
             return jsonify({'errno': 1, 'errmsg': '请求必须是 JSON 格式'}), 400
 
-        data = request.json or {}
+        # 获取请求数据
+        data = request.get_json(silent=True) or {}
+        stream = data.get('stream', False)
+        print(f'[AI Chat] stream={stream}, question={data.get("question", "")[:50]}...' if len(data.get("question", "")) > 50 else f'[AI Chat] stream={stream}, question={data.get("question", "")}')
+
+        if stream:
+            # 返回流式响应
+            print('[AI Chat] 返回流式响应')
+            return Response(
+                stream_mascot_chat(data),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                    'X-Accel-Buffering': 'no',
+                }
+            )
+
+        # 非流式模式（兼容旧版）
         question = (data.get('question') or '').strip()
         if not question:
             return jsonify({'errno': 1, 'errmsg': 'question 不能为空'}), 400

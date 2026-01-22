@@ -564,11 +564,16 @@ def update_post():
             'detail': error_detail if current_app.config.get('DEBUG') else None
         }), 500
 
-@bp.route('/posts/delete', methods=['DELETE'])
+@bp.route('/posts/delete', methods=['DELETE', 'POST'])
 def delete_post():
     """删除文章"""
     try:
-        filename = request.args.get('filename')
+        # 支持 DELETE (query param) 和 POST (JSON body)
+        if request.method == 'POST':
+            data = request.json or {}
+            filename = data.get('filename') or request.args.get('filename')
+        else:
+            filename = request.args.get('filename')
         if not filename:
             return jsonify({'errno': 1, 'errmsg': '文件名不能为空'}), 400
         

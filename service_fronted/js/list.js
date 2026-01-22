@@ -232,8 +232,12 @@ async function deletePost(filename) {
     }
 
     try {
-        const response = await fetch(`${API_BASE}/posts/delete?filename=${encodeURIComponent(decodedFilename)}`, {
-            method: 'DELETE'
+        const response = await fetch(`${API_BASE}/posts/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: decodedFilename })
         });
 
         const result = await response.json();

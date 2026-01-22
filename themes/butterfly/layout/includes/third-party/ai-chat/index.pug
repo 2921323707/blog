@@ -1,18 +1,17 @@
-//- AI Chat (MVP) - custom modal + mask + script
+//- AI Chat (移动端全屏版本 - 底部输入框)
 #ai-chat
-  .ai-chat-dialog#ai-chat-dialog(role="dialog" aria-modal="true" aria-labelledby="ai-chat-title" aria-hidden="true")
-    nav.ai-chat-nav
-      span.ai-chat-title#ai-chat-title 嘟嘟可
+  .ai-chat-dialog#ai-chat-dialog(role="dialog" aria-modal="true" aria-hidden="true")
+    .ai-chat-banner
+      span.ai-chat-title 嘟嘟可
       button.ai-chat-close-button#ai-chat-close(type="button" title="关闭" aria-label="关闭")
         i.fas.fa-times
     .ai-chat-body
       .ai-chat-messages#ai-chat-messages(role="log" aria-live="polite" aria-relevant="additions")
-      form.ai-chat-form#ai-chat-form
-        input.ai-chat-input#ai-chat-input(type="text" placeholder="问我关于博客内容的问题…" autocomplete="off" inputmode="text" enterkeyhint="send" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="输入问题")
-        button.ai-chat-send#ai-chat-send(type="submit" title="发送" aria-label="发送")
-          i.fas.fa-paper-plane
+    .ai-chat-input-wrap
+      input.ai-chat-input(type="text", placeholder="输入消息...", autocomplete="off", aria-label="输入消息")
+      button.ai-chat-send-btn(type="button", aria-label="发送")
+        i.fas.fa-paper-plane
 
   #ai-chat-mask(aria-hidden="true")
 
 script(src=url_for('/js/ai-chat.js') data-pjax)
-
