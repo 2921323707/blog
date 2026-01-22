@@ -16,7 +16,7 @@ function initCoverUpload() {
     coverUploadArea.addEventListener('dragleave', () => {
         coverUploadArea.classList.remove('dragover');
     });
-
+    //
     coverUploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         coverUploadArea.classList.remove('dragover');
