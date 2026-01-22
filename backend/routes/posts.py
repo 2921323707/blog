@@ -174,53 +174,49 @@ def submit_post():
         
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(post_content)
-        
-        # 自动生成静态文件（可选，失败不影响文章保存）
-        generate_warning = None
-        original_dir = None
-        try:
-            original_dir = os.getcwd()
-            # Windows 上需要使用 shell=True，并且使用完整命令
-            import platform
-            if platform.system() == 'Windows':
-                # Windows 上使用 cmd /c
-                cmd = 'npx hexo generate'
-            else:
-                cmd = ['npx', 'hexo', 'generate']
-            
-            result = subprocess.run(
-                cmd, 
-                check=False, 
-                capture_output=True, 
-                text=True,
-                shell=(platform.system() == 'Windows'),
-                timeout=60,
-                cwd=str(BASE_DIR)
-            )
-            
-            if result.returncode != 0:
-                error_msg = result.stderr if result.stderr else result.stdout
-                generate_warning = f'生成静态文件失败: {error_msg[:200] if error_msg else "未知错误"}'
-        except subprocess.TimeoutExpired:
-            generate_warning = '生成静态文件超时（超过60秒）'
-        except Exception as e:
-            generate_warning = f'生成静态文件失败: {str(e)[:200]}'
-        finally:
-            if original_dir:
-                try:
-                    os.chdir(original_dir)
-                except:
-                    pass
-        
+
         response_data = {
-            'errno': 0, 
+            'errno': 0,
             'data': {
                 'filename': filename,
-                'message': '文章提交成功' + ('并已生成静态文件' if not generate_warning else '')
+                'message': '文章提交成功，正在后台生成静态文件...'
             }
         }
-        if generate_warning:
-            response_data['warning'] = generate_warning
+
+        # 异步生成静态文件（后台线程，不阻塞提交）
+        def _generate_job():
+            try:
+                import platform
+                if platform.system() == 'Windows':
+                    cmd = 'npx hexo generate'
+                else:
+                    cmd = ['npx', 'hexo', 'generate']
+
+                result = subprocess.run(
+                    cmd,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    shell=(platform.system() == 'Windows'),
+                    timeout=120,
+                    cwd=str(BASE_DIR)
+                )
+
+                if result.returncode != 0:
+                    error_msg = result.stderr if result.stderr else result.stdout
+                    print(f"生成静态文件失败: {error_msg[:200] if error_msg else '未知错误'}")
+                else:
+                    print("静态文件生成成功")
+            except subprocess.TimeoutExpired:
+                print("生成静态文件超时")
+            except Exception as e:
+                print(f"生成静态文件失败: {str(e)[:200]}")
+
+        try:
+            threading.Thread(target=_generate_job, daemon=True).start()
+            response_data['data']['generate_status'] = 'queued'
+        except Exception as e:
+            response_data['data']['generate_status'] = f'failed_to_queue: {str(e)[:120]}'
 
         # 增量入库：单篇文章 embedding + 写入 Chroma（后台线程，不阻塞提交）
         def _index_job(path_str: str):
@@ -235,7 +231,7 @@ def submit_post():
             response_data['data']['rag_index'] = 'queued'
         except Exception as e:
             response_data['data']['rag_index'] = f'failed_to_queue: {str(e)[:120]}'
-        
+
         return jsonify(response_data)
         
     except Exception as e:
@@ -376,8 +372,15 @@ def get_post():
             return jsonify({'errno': 1, 'errmsg': '文件名不能为空'}), 400
         
         # 安全检查：防止路径遍历
-        if '..' in filename or '/' in filename or '\\' in filename:
-            return jsonify({'errno': 1, 'errmsg': '无效的文件名'}), 400
+        # 只检查相对路径遍历，不检查合法的文件名
+        if '..' in filename:
+            return jsonify({'errno': 1, 'errmsg': '无效的文件名：包含路径遍历字符'}), 400
+
+        # 确保文件名只包含合法字符（文件名+扩展名）
+        # 允许字母、数字、下划线、连字符、点、空格和中文
+        import re
+        if not re.match(r'^[a-zA-Z0-9_\-\s.\u4e00-\u9fa5]+\.md$', filename):
+            return jsonify({'errno': 1, 'errmsg': '无效的文件名格式'}), 400
         
         filepath = POSTS_DIR / filename
         if not filepath.exists():
@@ -426,8 +429,15 @@ def update_post():
             return jsonify({'errno': 1, 'errmsg': '文件名不能为空'}), 400
         
         # 安全检查：防止路径遍历
-        if '..' in filename or '/' in filename or '\\' in filename:
-            return jsonify({'errno': 1, 'errmsg': '无效的文件名'}), 400
+        # 只检查相对路径遍历，不检查合法的文件名
+        if '..' in filename:
+            return jsonify({'errno': 1, 'errmsg': '无效的文件名：包含路径遍历字符'}), 400
+
+        # 确保文件名只包含合法字符（文件名+扩展名）
+        # 允许字母、数字、下划线、连字符、点、空格和中文
+        import re
+        if not re.match(r'^[a-zA-Z0-9_\-\s.\u4e00-\u9fa5]+\.md$', filename):
+            return jsonify({'errno': 1, 'errmsg': '无效的文件名格式'}), 400
         
         filepath = POSTS_DIR / filename
         if not filepath.exists():
@@ -478,57 +488,63 @@ def update_post():
         # 保存文章文件
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(post_content)
-        
-        # 自动生成静态文件（可选，失败不影响文章保存）
-        generate_warning = None
-        try:
-            import platform
-            if platform.system() == 'Windows':
-                cmd = 'npx hexo generate'
-            else:
-                cmd = ['npx', 'hexo', 'generate']
-            
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=True,
-                text=True,
-                shell=(platform.system() == 'Windows'),
-                timeout=60,
-                cwd=str(BASE_DIR)
-            )
-            
-            if result.returncode != 0:
-                error_msg = result.stderr if result.stderr else result.stdout
-                generate_warning = f'生成静态文件失败: {error_msg[:200] if error_msg else "未知错误"}'
-        except subprocess.TimeoutExpired:
-            generate_warning = '生成静态文件超时（超过60秒）'
-        except Exception as e:
-            generate_warning = f'生成静态文件失败: {str(e)[:200]}'
-        
+
         response_data = {
             'errno': 0,
             'data': {
                 'filename': filename,
-                'message': '文章更新成功' + ('并已生成静态文件' if not generate_warning else '')
+                'message': '文章更新成功，正在后台生成静态文件...'
             }
         }
-        if generate_warning:
-            response_data['warning'] = generate_warning
-        
+
+        # 异步生成静态文件（后台线程，不阻塞更新）
+        def _generate_job():
+            try:
+                import platform
+                if platform.system() == 'Windows':
+                    cmd = 'npx hexo generate'
+                else:
+                    cmd = ['npx', 'hexo', 'generate']
+
+                result = subprocess.run(
+                    cmd,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    shell=(platform.system() == 'Windows'),
+                    timeout=120,
+                    cwd=str(BASE_DIR)
+                )
+
+                if result.returncode != 0:
+                    error_msg = result.stderr if result.stderr else result.stdout
+                    print(f"生成静态文件失败: {error_msg[:200] if error_msg else '未知错误'}")
+                else:
+                    print("静态文件生成成功")
+            except subprocess.TimeoutExpired:
+                print("生成静态文件超时")
+            except Exception as e:
+                print(f"生成静态文件失败: {str(e)[:200]}")
+
+        try:
+            threading.Thread(target=_generate_job, daemon=True).start()
+            response_data['data']['generate_status'] = 'queued'
+        except Exception as e:
+            response_data['data']['generate_status'] = f'failed_to_queue: {str(e)[:120]}'
+
         # 增量入库：单篇文章 embedding + 写入 Chroma（后台线程，不阻塞提交）
         def _index_job(path_str: str):
             try:
                 upsert_post(path_str)
             except Exception as e:
                 print(f"RAG 增量入库失败: {e}")
-        
+
         try:
             threading.Thread(target=_index_job, args=(str(filepath),), daemon=True).start()
             response_data['data']['rag_index'] = 'queued'
         except Exception as e:
             response_data['data']['rag_index'] = f'failed_to_queue: {str(e)[:120]}'
-        
+
         return jsonify(response_data)
         
     except Exception as e:
@@ -550,8 +566,15 @@ def delete_post():
             return jsonify({'errno': 1, 'errmsg': '文件名不能为空'}), 400
         
         # 安全检查：防止路径遍历
-        if '..' in filename or '/' in filename or '\\' in filename:
-            return jsonify({'errno': 1, 'errmsg': '无效的文件名'}), 400
+        # 只检查相对路径遍历，不检查合法的文件名
+        if '..' in filename:
+            return jsonify({'errno': 1, 'errmsg': '无效的文件名：包含路径遍历字符'}), 400
+
+        # 确保文件名只包含合法字符（文件名+扩展名）
+        # 允许字母、数字、下划线、连字符、点、空格和中文
+        import re
+        if not re.match(r'^[a-zA-Z0-9_\-\s.\u4e00-\u9fa5]+\.md$', filename):
+            return jsonify({'errno': 1, 'errmsg': '无效的文件名格式'}), 400
         
         filepath = POSTS_DIR / filename
         if not filepath.exists():
@@ -559,43 +582,49 @@ def delete_post():
         
         # 删除文件
         filepath.unlink()
-        
-        # 自动生成静态文件（可选，失败不影响删除）
-        generate_warning = None
-        try:
-            import platform
-            if platform.system() == 'Windows':
-                cmd = 'npx hexo generate'
-            else:
-                cmd = ['npx', 'hexo', 'generate']
-            
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=True,
-                text=True,
-                shell=(platform.system() == 'Windows'),
-                timeout=60,
-                cwd=str(BASE_DIR)
-            )
-            
-            if result.returncode != 0:
-                error_msg = result.stderr if result.stderr else result.stdout
-                generate_warning = f'生成静态文件失败: {error_msg[:200] if error_msg else "未知错误"}'
-        except subprocess.TimeoutExpired:
-            generate_warning = '生成静态文件超时（超过60秒）'
-        except Exception as e:
-            generate_warning = f'生成静态文件失败: {str(e)[:200]}'
-        
+
         response_data = {
             'errno': 0,
             'data': {
-                'message': '文章删除成功' + ('并已生成静态文件' if not generate_warning else '')
+                'message': '文章删除成功，正在后台生成静态文件...'
             }
         }
-        if generate_warning:
-            response_data['warning'] = generate_warning
-        
+
+        # 异步生成静态文件（后台线程，不阻塞删除）
+        def _generate_job():
+            try:
+                import platform
+                if platform.system() == 'Windows':
+                    cmd = 'npx hexo generate'
+                else:
+                    cmd = ['npx', 'hexo', 'generate']
+
+                result = subprocess.run(
+                    cmd,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    shell=(platform.system() == 'Windows'),
+                    timeout=120,
+                    cwd=str(BASE_DIR)
+                )
+
+                if result.returncode != 0:
+                    error_msg = result.stderr if result.stderr else result.stdout
+                    print(f"生成静态文件失败: {error_msg[:200] if error_msg else '未知错误'}")
+                else:
+                    print("静态文件生成成功")
+            except subprocess.TimeoutExpired:
+                print("生成静态文件超时")
+            except Exception as e:
+                print(f"生成静态文件失败: {str(e)[:200]}")
+
+        try:
+            threading.Thread(target=_generate_job, daemon=True).start()
+            response_data['data']['generate_status'] = 'queued'
+        except Exception as e:
+            response_data['data']['generate_status'] = f'failed_to_queue: {str(e)[:120]}'
+
         return jsonify(response_data)
         
     except Exception as e:

@@ -5,7 +5,7 @@ function initViewToggle() {
     const viewToggle = document.getElementById('viewToggle');
     const viewToggleIcon = document.getElementById('viewToggleIcon');
     const viewToggleText = document.getElementById('viewToggleText');
-    
+
     viewToggle.addEventListener('click', () => {
         if (currentView === 'editor') {
             showListView();
@@ -36,12 +36,12 @@ function showEditorView() {
 function initPostsList() {
     const newPostBtn = document.getElementById('newPostBtn');
     const cancelEditBtn = document.getElementById('cancelEditBtn');
-    
+
     newPostBtn.addEventListener('click', () => {
         resetForm();
         showEditorView();
     });
-    
+
     cancelEditBtn.addEventListener('click', () => {
         if (confirm('确定要取消编辑吗？未保存的更改将丢失。')) {
             resetForm();
@@ -53,19 +53,19 @@ function initPostsList() {
 async function loadPostsList() {
     const container = document.getElementById('postsListContainer');
     const loading = document.getElementById('postsListLoading');
-    
+
     loading.style.display = 'flex';
     container.innerHTML = '';
-    
+
     try {
         const response = await fetch(`${API_BASE}/posts/list`);
         const result = await response.json();
-        
+
         loading.style.display = 'none';
-        
+
         if (result.errno === 0) {
             const posts = result.data || [];
-            
+
             if (posts.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -75,9 +75,11 @@ async function loadPostsList() {
                 `;
             } else {
                 container.innerHTML = posts.map(post => {
-                    const filename = escapeHtml(post.filename);
+                    const rawFilename = post.filename;
+                    const safeFilename = rawFilename.replace(/"/g, '&quot;');
+                    const displayFilename = escapeHtml(post.filename);
                     return `
-                    <div class="post-item" data-filename="${filename}">
+                    <div class="post-item" data-filename="${safeFilename}">
                         <div class="post-item-content">
                             <h3 class="post-title">${escapeHtml(post.title || post.filename)}</h3>
                             <div class="post-meta">
@@ -87,7 +89,7 @@ async function loadPostsList() {
                                 </span>
                                 <span class="post-filename">
                                     <i class="fas fa-file"></i>
-                                    ${filename}
+                                    ${displayFilename}
                                 </span>
                                 <span class="post-size">
                                     <i class="fas fa-hdd"></i>
@@ -96,11 +98,11 @@ async function loadPostsList() {
                             </div>
                         </div>
                         <div class="post-item-actions">
-                            <button class="btn btn-sm btn-primary edit-post-btn" data-filename="${filename}" title="编辑">
+                            <button class="btn btn-sm btn-primary edit-post-btn" data-filename="${safeFilename}" title="编辑">
                                 <i class="fas fa-edit"></i>
                                 编辑
                             </button>
-                            <button class="btn btn-sm btn-danger delete-post-btn" data-filename="${filename}" title="删除">
+                            <button class="btn btn-sm btn-danger delete-post-btn" data-filename="${safeFilename}" title="删除">
                                 <i class="fas fa-trash"></i>
                                 删除
                             </button>
@@ -108,7 +110,7 @@ async function loadPostsList() {
                     </div>
                 `;
                 }).join('');
-                
+
                 // 绑定编辑和删除按钮事件
                 container.querySelectorAll('.edit-post-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
@@ -116,7 +118,7 @@ async function loadPostsList() {
                         editPost(filename);
                     });
                 });
-                
+
                 container.querySelectorAll('.delete-post-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const filename = e.target.closest('.delete-post-btn').getAttribute('data-filename');
@@ -148,27 +150,29 @@ async function loadPostsList() {
 }
 
 async function editPost(filename) {
+    // 将 &quot; 转换回引号
+    const decodedFilename = filename.replace(/&quot;/g, '"');
     try {
         showStatus('正在加载文章...', 'info');
-        const response = await fetch(`${API_BASE}/posts/get?filename=${encodeURIComponent(filename)}`);
+        const response = await fetch(`${API_BASE}/posts/get?filename=${encodeURIComponent(decodedFilename)}`);
         const result = await response.json();
-        
+
         if (result.errno === 0) {
             const post = result.data;
-            
+
             // 填充表单
             document.getElementById('title').value = post.title || '';
             document.getElementById('content').value = post.content || '';
             document.getElementById('date').value = post.date ? post.date.split(' ')[0].split('T')[0] : '';
-            
+
             // 填充标签
             tags = Array.isArray(post.tags) ? [...post.tags] : (post.tags ? [post.tags] : []);
             updateTagsDisplay();
-            
+
             // 填充分类
             categories = Array.isArray(post.categories) ? [...post.categories] : (post.categories ? [post.categories] : []);
             updateCategoriesDisplay();
-            
+
             // 填充封面
             if (post.cover) {
                 coverImageUrl = post.cover;
@@ -189,22 +193,22 @@ async function editPost(filename) {
                 coverImageUrl = null;
                 document.getElementById('coverPreview').innerHTML = '';
             }
-            
+
             // 清空图片预览（编辑时不自动加载已上传的图片）
             uploadedImages = [];
             document.getElementById('imagePreview').innerHTML = '';
-            
+
             // 设置编辑模式
-            editingFilename = filename;
+            editingFilename = decodedFilename;
             document.getElementById('submitBtnText').textContent = '更新文章';
             document.getElementById('cancelEditBtn').style.display = 'inline-flex';
-            
+
             // 切换到编辑器视图
             showEditorView();
-            
+
             // 滚动到顶部
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            
+
             showStatus('文章加载成功', 'success');
             setTimeout(() => {
                 const status = document.getElementById('status');
@@ -220,27 +224,26 @@ async function editPost(filename) {
 }
 
 async function deletePost(filename) {
-    const postTitle = filename.replace('.md', '');
+    // 将 &quot; 转换回引号
+    const decodedFilename = filename.replace(/&quot;/g, '"');
+    const postTitle = decodedFilename.replace('.md', '');
     if (!confirm(`确定要删除文章 "${postTitle}" 吗？此操作不可恢复！`)) {
         return;
     }
-    
+
     try {
-        const response = await fetch(`${API_BASE}/posts/delete?filename=${encodeURIComponent(filename)}`, {
+        const response = await fetch(`${API_BASE}/posts/delete?filename=${encodeURIComponent(decodedFilename)}`, {
             method: 'DELETE'
         });
-        
+
         const result = await response.json();
-        
+
         if (result.errno === 0) {
             showStatus(`✅ ${result.data.message || '文章删除成功！'}`, 'success');
-            // 重新加载列表
+            // 刷新页面
             setTimeout(() => {
-                loadPostsList();
-                const status = document.getElementById('status');
-                status.className = 'status';
-                status.textContent = '';
-            }, 1500);
+                window.location.reload();
+            }, 1000);
         } else {
             showStatus(`❌ 删除失败: ${result.errmsg || '未知错误'}`, 'error');
         }

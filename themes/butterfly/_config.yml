@@ -173,14 +173,10 @@ subtitle:
   source: false
   # If you close the typewriter effect, the subtitle will only show the first line of sub
   sub:
-    - 一剑破万法，一剑斩乾坤
-    - 仗剑走天涯，快意恩仇
-    - 我命由我不由天
-    - 踏破山河，问鼎天下
-    - 御剑乘风来，除魔天地间
-    - 一剑光寒十九州
-    - 江湖路远，有缘再见
-    - 剑在手，问天下谁是英雄
+    - 莫见乎隐，莫显乎微，故君子慎其独也。
+    - 慎独，慎独，故君子慎独。
+    - 我即是万物的尺度，这就是"慎独"的力量。
+    - 何物徒留名字？何物遍开幽谷？何物映自身于镜水？何物象征拯救世界的孤独牺牲？
 
 # Article layout on the homepage
 # 1: Cover on the left, info on the right
