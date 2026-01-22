@@ -1,4 +1,4 @@
-// AI Chat modal (MVP)
+// AI Chat modal (MVP) - 优化移动端键盘弹出体验
 
 #ai-chat-dialog
   position: fixed
@@ -60,18 +60,42 @@
     box-shadow: 0 22px 70px rgba(0, 0, 0, .22)
 
   +maxWidth768()
-    // mobile: 底部玻璃拟态弹层（键盘弹起会自动上移）
-    top: auto
-    left: 12px
-    right: 12px
-    bottom: calc(12px + var(--ai-chat-bottom, 0px) + env(safe-area-inset-bottom))
-    width: auto
-    height: clamp(220px, calc(var(--ai-chat-height, 100dvh) - 140px), calc(var(--ai-chat-height, 100dvh) - 24px))
+    // mobile: 参考微信/Telegram/ChatGPT 等主流方案
+    // 使用 dvh (dynamic viewport height) 适配移动端动态视口
+    position: fixed
+    top: 0
+    left: 0
+    right: 0
+    bottom: 0
+    width: 100%
+    height: var(--ai-chat-height, 100dvh)
     max-width: none
-    max-height: calc(var(--ai-chat-height, 100dvh) - 24px)
-    addBorderRadius(18, true)
-    // iOS 键盘 + fixed + transform 组合容易出现“局部放大/抖动”
+    max-height: none
+    margin: 0
+    addBorderRadius(0, true)
+    // 禁用 transform 避免 iOS 键盘弹起时的抖动和局部放大
     transform: none
+    // 使用内部容器控制圆角和边距
+    display: flex
+    flex-direction: column
+    // 在弹窗内容区外层添加安全边距
+    background: transparent
+    box-shadow: none
+    border: none
+    backdrop-filter: none
+
+    // 内部容器（玻璃拟态效果）
+    &::before
+      content: ''
+      position: absolute
+      inset: 0
+      addBorderRadius(18, true)
+      background: linear-gradient(135deg, var(--ai-chat-soft-pink), var(--ai-chat-soft-blue)), var(--ai-chat-glass-bg)
+      border: 1px solid var(--ai-chat-glass-border)
+      box-shadow: var(--ai-chat-glass-shadow)
+      backdrop-filter: blur(18px) saturate(140%)
+      -webkit-backdrop-filter: blur(18px) saturate(140%)
+      opacity: 1
 
   .ai-chat-nav
     display: flex
@@ -92,6 +116,8 @@
 
     +maxWidth768()
       padding: calc(12px + env(safe-area-inset-top)) 12px 12px
+      padding-left: calc(12px + env(safe-area-inset-left))
+      padding-right: calc(12px + env(safe-area-inset-right))
 
     .ai-chat-title
       font-weight: 600
@@ -138,6 +164,8 @@
     +maxWidth768()
       padding: 12px
       padding-bottom: calc(12px + env(safe-area-inset-bottom))
+      padding-left: calc(12px + env(safe-area-inset-left))
+      padding-right: calc(12px + env(safe-area-inset-right))
 
   .ai-chat-messages
     flex: 1
@@ -314,6 +342,10 @@
   [data-theme='dark'] &
     background: linear-gradient(135deg, rgba(0, 0, 0, .38), rgba(0, 0, 0, .58))
 
+  +maxWidth768()
+    // 移动端全屏遮罩
+    background: rgba(0, 0, 0, .45)
+
 @media (prefers-reduced-motion: reduce)
   #ai-chat-dialog
     transition: none
@@ -346,4 +378,3 @@
   &:focus-visible
     outline: 3px solid rgba($theme-color, .35)
     outline-offset: 3px
-

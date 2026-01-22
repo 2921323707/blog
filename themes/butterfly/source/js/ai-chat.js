@@ -28,29 +28,30 @@
 
   const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 768px)').matches
 
-  // 移动端键盘弹起时：用 visualViewport 将弹窗高度对齐“真实可视区域”
+  // 移动端键盘弹起时：参考微信/Telegram 方案，使用 visualViewport 适配
   const updateMobileViewportVars = (dialogEl) => {
     const dialog = dialogEl || document.querySelector(SELECTORS.dialog)
     if (!dialog) return
 
     // 只在移动端启用，避免影响桌面端定位（右下角悬浮）
     if (!isMobile()) {
-      dialog.style.removeProperty('--ai-chat-top')
       dialog.style.removeProperty('--ai-chat-height')
-      dialog.style.removeProperty('--ai-chat-bottom')
       return
     }
 
+    // 使用 visualViewport API（支持现代浏览器）
+    // 参考：微信小程序、Telegram、ChatGPT 的移动端适配方案
     const vv = window.visualViewport
-    const height = Math.max(0, Math.round(vv ? vv.height : window.innerHeight))
-    const top = Math.max(0, Math.round(vv ? vv.offsetTop : 0))
-    // iOS/Android 键盘弹起时，visualViewport 底部会缩短；用 bottom 偏移把弹层“抬”到键盘之上
-    const vvBottom = vv ? vv.height + vv.offsetTop : window.innerHeight
-    const bottom = Math.max(0, Math.round((window.innerHeight || 0) - vvBottom))
 
-    dialog.style.setProperty('--ai-chat-top', `${top}px`)
-    dialog.style.setProperty('--ai-chat-height', `${height}px`)
-    dialog.style.setProperty('--ai-chat-bottom', `${bottom}px`)
+    if (vv) {
+      // 获取动态视口高度（排除键盘）
+      const dvh = vv.height
+      // 设置 CSS 变量，配合 dvh 使用
+      dialog.style.setProperty('--ai-chat-height', `${dvh}px`)
+    } else {
+      // 降级方案：使用 innerHeight
+      dialog.style.setProperty('--ai-chat-height', `${window.innerHeight}px`)
+    }
   }
 
   const ensureLauncherButton = () => {
@@ -200,15 +201,16 @@
     lockScroll()
     updateMobileViewportVars(dialog)
 
-    // 首次打开：给一个轻量引导，增强“可用性认知”
+    // 首次打开：给一个轻量引导，增强"可用性认知"
     if (messages && messages.children.length === 0 && messages.dataset.greeted !== '1') {
       messages.dataset.greeted = '1'
-      appendMsg(messages, 'bot', '你好，我是嘟嘟可。你可以直接问我“这篇文章讲了什么/某个概念在哪里提到/推荐相关阅读”等。')
+      appendMsg(messages, 'bot', '你好，我是嘟嘟可。你可以直接问我"这篇文章讲了什么/某个概念在哪里提到/推荐相关阅读"等。')
     }
 
     input && input.focus()
-    // 部分浏览器键盘事件触发较慢，补一刀
-    setTimeout(() => updateMobileViewportVars(dialog), 80)
+    // 移动端键盘弹出可能有延迟，延迟更新确保高度正确
+    setTimeout(() => updateMobileViewportVars(dialog), 100)
+    setTimeout(() => updateMobileViewportVars(dialog), 300)
   }
 
   const hide = ({ dialog, mask, input, send }) => {
@@ -254,14 +256,34 @@
 
       const vv = window.visualViewport
       if (vv) {
-        vv.addEventListener('resize', onChange)
-        vv.addEventListener('scroll', onChange)
+        // 监听 visualViewport 变化事件
+        vv.addEventListener('resize', onChange, { passive: true })
+        vv.addEventListener('scroll', onChange, { passive: true })
       }
 
-      window.addEventListener('orientationchange', () => setTimeout(onChange, 120))
-      window.addEventListener('resize', () => setTimeout(onChange, 80))
-      input.addEventListener('focus', () => setTimeout(onChange, 0))
-      input.addEventListener('blur', () => setTimeout(onChange, 0))
+      // 降级：监听窗口变化
+      window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+          updateMobileViewportVars(dialog)
+          // 横竖屏切换后，滚动到消息底部
+          if (messages) scrollToBottom(messages)
+        }, 150)
+      })
+
+      window.addEventListener('resize', () => {
+        setTimeout(onChange, 100)
+      })
+
+      // 键盘弹出/收起时的处理
+      if (input) {
+        input.addEventListener('focus', () => {
+          setTimeout(onChange, 50)
+        }, { passive: true })
+
+        input.addEventListener('blur', () => {
+          setTimeout(onChange, 100)
+        }, { passive: true })
+      }
 
       // 首次也更新一次（避免初始高度取错）
       updateMobileViewportVars(dialog)
@@ -368,4 +390,3 @@
   document.addEventListener('DOMContentLoaded', bindOnce)
   document.addEventListener('pjax:complete', bindOnce)
 })()
-
