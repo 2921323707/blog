@@ -234,6 +234,10 @@
     color: var(--btn-color)
     addBorderRadius(10)
     @extend .btn-effects
+    flex-shrink: 0
+    flex-grow: 0
+    min-width: 42px
+    min-height: 38px
 
     &:hover
       background: var(--btn-hover-color)
@@ -244,7 +248,9 @@
 
     +maxWidth768()
       width: 44px
-      height: 40px
+      height: 44px
+      min-width: 44px
+      min-height: 44px
 
 // message bubbles
 .ai-chat-msg

@@ -85,14 +85,24 @@
 
   const animateIn = (el, animation) => {
     if (!el) return
-    if (window.btf && typeof window.btf.animateIn === 'function') return window.btf.animateIn(el, animation)
-    el.style.display = 'block'
+    if (window.btf && typeof window.btf.animateIn === 'function') {
+      window.btf.animateIn(el, animation)
+    } else {
+      el.style.display = 'block'
+    }
   }
 
   const animateOut = (el, animation) => {
     if (!el) return
-    if (window.btf && typeof window.btf.animateOut === 'function') return window.btf.animateOut(el, animation)
-    el.style.display = 'none'
+    if (window.btf && typeof window.btf.animateOut === 'function') {
+      window.btf.animateOut(el, animation)
+      // 确保 btf 动画完成后真正隐藏元素
+      setTimeout(() => {
+        el.style.display = 'none'
+      }, 500)
+    } else {
+      el.style.display = 'none'
+    }
   }
 
   const lockScroll = () => {
@@ -191,6 +201,9 @@
   }
 
   const show = ({ dialog, mask, input, messages }) => {
+    // 防止重复显示
+    if (dialog && dialog.style.display !== 'none') return
+
     animateIn(dialog, 'to_show 0.5s')
     animateIn(mask, 'to_show 0.5s')
     // 保证 flex 布局生效（消息区/输入区才能正确占满并滚动）
@@ -214,6 +227,13 @@
   }
 
   const hide = ({ dialog, mask, input, send }) => {
+    // 防止重复隐藏
+    if (dialog && dialog.style.display === 'none') return
+
+    // 立即设置 display 为 none，防止动画导致的再次显示
+    if (dialog) dialog.style.display = 'none'
+    if (mask) mask.style.display = 'none'
+
     animateOut(dialog, 'to_hide 0.5s')
     animateOut(mask, 'to_hide 0.5s')
     setAriaHidden(dialog, true)
