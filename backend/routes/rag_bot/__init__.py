@@ -146,8 +146,8 @@ def mascot_chat():
                 mimetype='text/event-stream',
                 headers={
                     'Cache-Control': 'no-cache',
-                    'Connection': 'keep-alive',
-                    'X-Accel-Buffering': 'no',
+                    # 注意：Connection 和 X-Accel-Buffering 是 hop-by-hop 头
+                    # 由代理服务器（Nginx）处理，WSGI 应用程序不应设置
                 }
             )
 
