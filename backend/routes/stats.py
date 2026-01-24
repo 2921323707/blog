@@ -20,6 +20,8 @@ def get_last_update_time():
             cwd=str(BASE_DIR),
             capture_output=True,
             text=True,
+            encoding='utf-8',  # 显式指定 utf-8
+            errors='replace',  # 忽略解码错误
             timeout=5
         )
         if result.returncode == 0 and result.stdout.strip():

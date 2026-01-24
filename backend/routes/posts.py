@@ -197,6 +197,8 @@ def submit_post():
                     check=False,
                     capture_output=True,
                     text=True,
+                    encoding='utf-8',  # 显式指定 utf-8
+                    errors='replace',  # 忽略解码错误
                     shell=(platform.system() == 'Windows'),
                     timeout=120,
                     cwd=str(BASE_DIR)
