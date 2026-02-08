@@ -2,6 +2,7 @@ extends includes/layout.pug
 
 block content
   if theme.tag_ui == 'index'
+    .page-title= _p('page.tag') + ' - ' + page.tag
     include ./includes/mixins/indexPostUI.pug
     +indexPostUI
   else

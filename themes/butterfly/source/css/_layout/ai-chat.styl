@@ -1,5 +1,14 @@
 // AI Chat 组件 - 透明磨砂质感版本
 
+// 弹窗打开时锁定背景滚动（解决移动端滑动时背景在动的问题）
+body.ai-chat-open
+  overflow: hidden
+  +maxWidth768()
+    position: fixed
+    left: 0
+    right: 0
+    width: 100%
+
 // 遮罩层
 #ai-chat-mask
   position: fixed
@@ -13,6 +22,10 @@
 
   [data-theme='dark'] &
     background: rgba(0, 0, 0, .5)
+
+  +maxWidth768()
+    // 阻止触摸事件传递到底层，避免滑动时背景滚动
+    touch-action: none
 
 // 对话框主体
 #ai-chat-dialog
@@ -50,7 +63,13 @@
     max-height: none
     border-radius: 0
     box-shadow: none
-    backdrop-filter: none
+    // 保留磨砂效果以保持一致性
+    backdrop-filter: blur(20px)
+    -webkit-backdrop-filter: blur(20px)
+    background: rgba(255, 255, 255, .95)
+
+    [data-theme='dark'] &
+      background: rgba(30, 30, 30, .95)
 
 // 顶部区域（标题栏）
 .ai-chat-header
@@ -118,10 +137,13 @@
   flex: 1
   min-height: 0
   padding: 12px
+  overflow: hidden
 
   +maxWidth768()
-    padding: 16px
+    padding: 12px
     padding-bottom: 0
+    // 移动端为固定底部输入框留出空间
+    margin-bottom: calc(60px + env(safe-area-inset-bottom, 0px))
 
 .ai-chat-messages
   flex: 1
@@ -131,9 +153,11 @@
   padding: 8px
   background: transparent
   border-radius: 12px
+  // 平滑滚动
+  -webkit-overflow-scrolling: touch
 
   +maxWidth768()
-    padding: 12px
+    padding: 8px 4px
     border-radius: 0
 
 // 底部输入区域
@@ -156,7 +180,17 @@
     left: 0
     right: 0
     bottom: 0
-    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px))
+    z-index: 1002
+    padding: 10px 12px
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px))
+    background: rgba(255, 255, 255, .9)
+    backdrop-filter: blur(20px)
+    -webkit-backdrop-filter: blur(20px)
+    border-top: 1px solid rgba(0, 0, 0, .1)
+
+    [data-theme='dark'] &
+      background: rgba(30, 30, 30, .9)
+      border-top-color: rgba(255, 255, 255, .1)
 
 .ai-chat-input
   flex: 1

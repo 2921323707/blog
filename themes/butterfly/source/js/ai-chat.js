@@ -132,6 +132,10 @@
     mask.style.display = 'block'
     dialog.setAttribute('aria-hidden', 'false')
     mask.setAttribute('aria-hidden', 'false')
+    // 移动端锁定背景滚动，避免滑动时背景在动（保存滚动位置以便关闭时恢复）
+    const scrollY = window.scrollY || window.pageYOffset
+    document.body.classList.add('ai-chat-open')
+    document.body.dataset.aiChatScrollY = String(scrollY)
 
     // 首次打开显示欢迎语
     if (messages && messages.children.length === 0 && !messages.dataset.greeted) {
@@ -154,6 +158,13 @@
     mask.style.display = 'none'
     dialog.setAttribute('aria-hidden', 'true')
     mask.setAttribute('aria-hidden', 'true')
+    document.body.classList.remove('ai-chat-open')
+    // 恢复打开弹窗前的滚动位置（移动端 body 使用 position:fixed 时会丢失）
+    const savedScrollY = document.body.dataset.aiChatScrollY
+    if (savedScrollY != null) {
+      window.scrollTo(0, Number(savedScrollY))
+      delete document.body.dataset.aiChatScrollY
+    }
 
     input?.blur()
   }
