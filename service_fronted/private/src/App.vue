@@ -42,6 +42,28 @@ const currentWaifu = ref(null)
 const currentVideo = ref(videoList[0] ?? null)
 const videoPlayer = ref(null)
 
+// 首页轮播 banner（广告位招租）
+const bannerSlides = [
+  { id: 'ad1', title: '广告位招租', bg: 'linear-gradient(135deg, #87ceeb 0%, #e0f4ff 50%, #b8e0f4 100%)', text: '广告位！招租' },
+  { id: 'ad2', title: '广告位招租', bg: 'linear-gradient(135deg, #a8e6cf 0%, #d4f1e8 50%, #88d4ab 100%)', text: '广告位招租' },
+  { id: 'ad3', title: '广告位招租', bg: 'linear-gradient(135deg, #ffd3b5 0%, #ffecd2 50%, #ffaaa5 100%)', text: '广告位招租' },
+]
+const bannerIndex = ref(0)
+let bannerTimer = null
+function startBannerTimer() {
+  bannerTimer = setInterval(() => {
+    bannerIndex.value = (bannerIndex.value + 1) % bannerSlides.length
+  }, 5000)
+}
+function stopBannerTimer() {
+  if (bannerTimer) clearInterval(bannerTimer)
+}
+function setBannerIndex(i) {
+  bannerIndex.value = i
+  stopBannerTimer()
+  startBannerTimer()
+}
+
 // 老婆列表占位（后续接 CRUD）
 const waifuList = ref([
   { id: '1', name: '示例老婆', art: 'https://picsum.photos/400/600?random=waifu1', source: '示例作品', note: '占位数据，后续可增删改' },
@@ -102,20 +124,41 @@ function playVideo(item) {
 </script>
 
 <template>
-  <header class="private-header">
-    <h1><i class="fas fa-heart"></i> 私站</h1>
-    <nav class="private-nav">
-      <button
-        v-for="t in tabs"
-        :key="t.id"
-        class="private-nav-btn"
-        :class="{ active: activeTab === t.id }"
-        @click="setTab(t.id)"
-      >
-        <i class="fas" :class="t.icon"></i>
-        <span>{{ t.label }}</span>
+  <header class="private-header wiki-nav">
+    <div class="wiki-nav-left">
+      <a href="#" class="wiki-logo" @click.prevent="setTab('flow')">私站</a>
+      <nav class="wiki-nav-links">
+        <a href="#" class="wiki-nav-link" @click.prevent="setTab('flow')">导航</a>
+        <a href="#" class="wiki-nav-link wiki-nav-link-drop">
+          帮助 <i class="fas fa-chevron-down"></i>
+        </a>
+        <a href="#" class="wiki-nav-link wiki-nav-link-drop">
+          关注我们 <i class="fas fa-chevron-down"></i>
+        </a>
+        <a href="#" class="wiki-nav-link" @click.prevent="setTab('waifu')">
+          <i class="fas fa-briefcase"></i> 创作中心
+        </a>
+      </nav>
+    </div>
+    <div class="wiki-nav-search">
+      <i class="fas fa-search wiki-search-icon"></i>
+      <input
+        type="search"
+        class="wiki-search-input"
+        placeholder="搜索..."
+        aria-label="搜索"
+      />
+    </div>
+    <div class="wiki-nav-right">
+      <span class="wiki-user-avatar" aria-hidden="true"></span>
+      <a href="#" class="wiki-member">
+        <span class="wiki-member-icon"><i class="fas fa-crown"></i></span>
+        <span class="wiki-member-label">会员</span>
+      </a>
+      <button type="button" class="wiki-btn-create" @click="setTab('waifu')">
+        <i class="fas fa-feather"></i> 创建
       </button>
-    </nav>
+    </div>
   </header>
 
   <main class="private-main">
@@ -147,13 +190,41 @@ function playVideo(item) {
           <div class="flow-carousel-wrap">
             <div class="flow-carousel">
               <div
-                v-for="card in flowCards"
-                :key="card.id"
-                class="flow-card"
-                @click="setTab(card.to)"
+                v-for="(slide, index) in bannerSlides"
+                :key="slide.id"
+                class="flow-banner"
+                :class="{ active: index === activeBannerIndex }"
               >
-                <img class="flow-card-img" :src="card.thumb" :alt="card.title" loading="lazy" />
-                <div class="flow-card-title">{{ card.title }}</div>
+                <div class="flow-banner-left">
+                  <div class="flow-banner-tag">广告位招租</div>
+                  <h2 class="flow-banner-title">{{ slide.title }}</h2>
+                  <p class="flow-banner-subtitle">{{ slide.subtitle }}</p>
+                  <p class="flow-banner-desc">{{ slide.description }}</p>
+                  <button
+                    type="button"
+                    class="flow-banner-cta"
+                    @click="setTab('waifu')"
+                  >
+                    立刻创建我的老婆
+                  </button>
+                </div>
+                <div class="flow-banner-right">
+                  <div class="flow-banner-image" aria-hidden="true"></div>
+                </div>
+              </div>
+              <div
+                v-if="bannerSlides.length > 1"
+                class="flow-banner-dots"
+              >
+                <button
+                  v-for="(slide, index) in bannerSlides"
+                  :key="slide.id + '-dot'"
+                  type="button"
+                  class="flow-banner-dot"
+                  :class="{ active: index === activeBannerIndex }"
+                  @click="activeBannerIndex = index"
+                  aria-label="切换 Banner"
+                ></button>
               </div>
             </div>
           </div>
