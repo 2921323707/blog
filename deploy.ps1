@@ -259,6 +259,25 @@ if (Test-Path (Join-Path $BlogDir "package-lock.json")) {
 Invoke-External "hexo clean" { npx hexo clean }
 Invoke-External "hexo generate" { npx hexo generate }
 
+# Vue 私站（/private）：需先安装依赖并构建，后端从 service_fronted/private/dist 提供静态文件
+$privateFrontDir = Join-Path $BlogDir "service_fronted\private"
+if (Test-Path (Join-Path $privateFrontDir "package.json")) {
+    Write-Step "Build Vue private site (service_fronted/private)"
+    Push-Location $privateFrontDir
+    try {
+        if (Test-Path (Join-Path $privateFrontDir "package-lock.json")) {
+            Invoke-External "npm ci (private)" { npm ci --no-audit --no-fund }
+        } else {
+            Invoke-External "npm install (private)" { npm install }
+        }
+        Invoke-External "vite build (private)" { npm run build }
+    } finally {
+        Pop-Location
+    }
+} else {
+    Write-Host "Skip Vue private build: service_fronted/private/package.json not found" -ForegroundColor Yellow
+}
+
 Write-Step "Install backend dependencies (backend\\.venv)"
 $python = Resolve-Exe $PythonExe "python" "python.exe"
 if (-not $python) { throw "未找到 python。请把 python 加入 PATH，或设置环境变量 PYTHON_EXE 指向 python.exe" }

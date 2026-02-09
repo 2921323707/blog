@@ -8,6 +8,7 @@ __pycache__/
 
 # Build outputs
 public/
+service_fronted/private/dist
 *.log
 logs/
 

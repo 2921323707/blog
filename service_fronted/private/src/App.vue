@@ -3,6 +3,7 @@ import { ref, nextTick, computed } from 'vue'
 import Breadcrumb from './components/Breadcrumb.vue'
 
 const tabs = [
+  { id: 'flow', label: '首页', icon: 'fa-home' },
   { id: 'meitu', label: '美图', icon: 'fa-image' },
   { id: 'erciyuan', label: '二次元', icon: 'fa-star' },
   { id: 'pixiv', label: 'Pixiv', icon: 'fa-palette' },
@@ -35,7 +36,7 @@ const videoList = [
   { id: 'v2', title: '示例视频 2', thumb: 'https://picsum.photos/320/180?random=video2', src: 'https://www.w3schools.com/html/movie.mp4' },
 ]
 
-const activeTab = ref('meitu')
+const activeTab = ref('flow')
 const waifuView = ref('list') // list | add | edit | detail
 const currentWaifu = ref(null)
 const currentVideo = ref(videoList[0] ?? null)
@@ -46,11 +47,26 @@ const waifuList = ref([
   { id: '1', name: '示例老婆', art: 'https://picsum.photos/400/600?random=waifu1', source: '示例作品', note: '占位数据，后续可增删改' },
 ])
 
+// Flow 横向流用的卡片（老婆 + 美图混合）
+const flowCards = computed(() => [
+  ...waifuList.value.map(w => ({ type: 'waifu', id: w.id, title: w.name, thumb: w.art, to: 'waifu' })),
+  ...meituList.slice(0, 4).map(m => ({ type: 'meitu', id: m.id, title: m.title, thumb: m.thumb, to: 'meitu' })),
+])
+
+// 最新条目（可后续接真实数据）
+const latestEntries = computed(() => [
+  ...waifuList.value.map(w => ({ label: w.name, to: 'waifu' })),
+  { label: '美图一览', to: 'meitu' },
+  { label: '二次元图库', to: 'erciyuan' },
+  { label: 'Pixiv 每日一图', to: 'pixiv' },
+  { label: '视频', to: 'video' },
+])
+
 const breadcrumbItems = computed(() => {
   const base = [{ label: '私站', to: '' }]
   if (activeTab.value !== 'waifu') {
     const t = tabs.find(x => x.id === activeTab.value)
-    return [...base, { label: t?.label ?? '首页', to: null }]
+    return [...base, { label: t?.label ?? '首页', to: t?.id === 'flow' ? null : t?.id }]
   }
   const second = [{ label: '老婆', to: 'waifu' }]
   const thirdMap = {
@@ -69,8 +85,9 @@ function setTab(id) {
 }
 
 function onBreadcrumbNavigate(to) {
-  if (to === '') setTab('meitu')
+  if (to === '') setTab('flow')
   else if (to === 'waifu') setTab('waifu')
+  else if (to) setTab(to)
 }
 
 function playVideo(item) {
@@ -108,6 +125,99 @@ function playVideo(item) {
       :sep-image="breadcrumbSep"
       @navigate="onBreadcrumbNavigate"
     />
+
+    <!-- 首页：萌娘百科 Flow 式布局（顶栏 + 分类栏 + 主区 + 右侧栏） -->
+    <section class="private-section flow-page" :class="{ active: activeTab === 'flow' }">
+      <!-- 分类导航栏（仿萌百：无限瀑布流 / 帖子文章 / ACGN·专题 / 创作中心） -->
+      <nav class="flow-category-nav">
+        <button type="button" class="flow-category-btn active">无限瀑布流</button>
+        <button type="button" class="flow-category-btn" @click="setTab('meitu')">美图 · 二次元</button>
+        <button type="button" class="flow-category-btn" @click="setTab('pixiv')">Pixiv</button>
+        <button type="button" class="flow-category-btn" @click="setTab('video')">视频</button>
+        <button type="button" class="flow-category-btn" @click="setTab('waifu')">创作中心</button>
+      </nav>
+
+      <div class="flow-layout">
+        <!-- 主内容区 -->
+        <div class="flow-main">
+          <div class="flow-welcome">
+            <p class="flow-welcome-text">你好～欢迎来到私站！</p>
+          </div>
+
+          <div class="flow-carousel-wrap">
+            <div class="flow-carousel">
+              <div
+                v-for="card in flowCards"
+                :key="card.id"
+                class="flow-card"
+                @click="setTab(card.to)"
+              >
+                <img class="flow-card-img" :src="card.thumb" :alt="card.title" loading="lazy" />
+                <div class="flow-card-title">{{ card.title }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-promo wiki-block">
+            <p>在这里可以浏览<strong>美图</strong>、<strong>二次元</strong>、<strong>Pixiv 每日一图</strong>与<strong>视频</strong>，还能管理<strong>我推的老婆</strong>～</p>
+          </div>
+
+          <div class="flow-topics wiki-block">
+            <h3 class="wiki-block-title">专题导航</h3>
+            <div class="topic-grid">
+              <button
+                v-for="t in tabs.filter(x => x.id !== 'flow')"
+                :key="t.id"
+                type="button"
+                class="topic-card"
+                @click="setTab(t.id)"
+              >
+                <i class="fas" :class="t.icon"></i>
+                <span>{{ t.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flow-follow wiki-block">
+            <h3 class="wiki-block-title">关于私站</h3>
+            <p>私站用于存放美图、二次元、Pixiv 插画、视频与「我推的老婆」列表，万物皆可萌～</p>
+          </div>
+        </div>
+
+        <!-- 右侧栏（仿萌百：统计卡片 + 绿色按钮 + 最新条目） -->
+        <aside class="flow-sidebar">
+          <div class="flow-sidebar-card wiki-block">
+            <div class="flow-sidebar-logo"><i class="fas fa-heart"></i> 私站</div>
+            <p class="flow-sidebar-desc">万物皆可萌的小站</p>
+            <p class="flow-stats-inline">{{ waifuList.length }} 位老婆 · {{ meituList.length + erciyuanList.length }} 张图</p>
+            <div class="flow-sidebar-btns">
+              <button type="button" class="flow-btn-primary" @click="setTab('waifu')"><i class="fas fa-plus"></i> 添加老婆</button>
+              <button type="button" class="flow-btn-primary" @click="setTab('flow')"><i class="fas fa-random"></i> 随机看看</button>
+            </div>
+          </div>
+          <div class="flow-sidebar-card wiki-block">
+            <div class="flow-sidebar-tabs">
+              <span class="flow-sidebar-tab active">最新条目</span>
+            </div>
+            <ul class="flow-sidebar-list">
+              <li v-for="(ent, i) in latestEntries" :key="i">
+                <a v-if="ent.to" href="#" class="flow-sidebar-link" @click.prevent="setTab(ent.to)">{{ ent.label }}</a>
+                <span v-else class="flow-sidebar-link plain">{{ ent.label }}</span>
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="flow-footer">
+        <span class="flow-footer-label">帮助 · 统计</span>
+        <a href="#" class="flow-footer-link" @click.prevent="setTab('waifu')">老婆列表</a>
+        <span class="flow-footer-sep">·</span>
+        <a href="#" class="flow-footer-link" @click.prevent="setTab('meitu')">美图</a>
+        <span class="flow-footer-sep">·</span>
+        <a href="#" class="flow-footer-link" @click.prevent="setTab('video')">视频</a>
+      </footer>
+    </section>
 
     <section class="private-section" :class="{ active: activeTab === 'meitu' }">
       <h2 class="section-title"><i class="fas fa-image"></i> 美图</h2>
