@@ -1,6 +1,14 @@
 <script setup>
-import { ref, nextTick, computed } from 'vue'
-import Breadcrumb from './components/Breadcrumb.vue'
+import { ref, computed } from 'vue'
+import Breadcrumb from './components/common/Breadcrumb.vue'
+import LayoutHeader from './components/layout/LayoutHeader.vue'
+import LayoutMain from './components/layout/LayoutMain.vue'
+import FlowPage from './components/flow/FlowPage.vue'
+import MeituGallery from './components/gallery/MeituGallery.vue'
+import ErciyuanGallery from './components/gallery/ErciyuanGallery.vue'
+import PixivDaily from './components/pixiv/PixivDaily.vue'
+import VideoSection from './components/video/VideoSection.vue'
+import WaifuSection from './components/waifu/WaifuSection.vue'
 
 const tabs = [
   { id: 'flow', label: '首页', icon: 'fa-home' },
@@ -11,7 +19,6 @@ const tabs = [
   { id: 'waifu', label: '老婆', icon: 'fa-heart' },
 ]
 
-// 面包屑分隔符图片（public/breadcrumb/arrow.svg）
 const breadcrumbSep = import.meta.env.BASE_URL + 'breadcrumb/arrow.svg'
 
 const placeholderImages = (count, seed) =>
@@ -36,46 +43,22 @@ const videoList = [
   { id: 'v2', title: '示例视频 2', thumb: 'https://picsum.photos/320/180?random=video2', src: 'https://www.w3schools.com/html/movie.mp4' },
 ]
 
+// 轮播占位：目前仅一条，无图片
+const bannerSlides = [
+  { id: 'ad1', title: '广告位招租', subtitle: '欢迎合作', description: '广告位招租，欢迎合作。', text: '广告位招租，欢迎合作。' },
+]
+
 const activeTab = ref('flow')
-const waifuView = ref('list') // list | add | edit | detail
+const waifuView = ref('list')
 const currentWaifu = ref(null)
 const currentVideo = ref(videoList[0] ?? null)
-const videoPlayer = ref(null)
 
-// 首页轮播 banner（广告位招租）
-const bannerSlides = [
-  { id: 'ad1', title: '广告位招租', bg: 'linear-gradient(135deg, #87ceeb 0%, #e0f4ff 50%, #b8e0f4 100%)', text: '广告位！招租' },
-  { id: 'ad2', title: '广告位招租', bg: 'linear-gradient(135deg, #a8e6cf 0%, #d4f1e8 50%, #88d4ab 100%)', text: '广告位招租' },
-  { id: 'ad3', title: '广告位招租', bg: 'linear-gradient(135deg, #ffd3b5 0%, #ffecd2 50%, #ffaaa5 100%)', text: '广告位招租' },
-]
-const bannerIndex = ref(0)
-let bannerTimer = null
-function startBannerTimer() {
-  bannerTimer = setInterval(() => {
-    bannerIndex.value = (bannerIndex.value + 1) % bannerSlides.length
-  }, 5000)
-}
-function stopBannerTimer() {
-  if (bannerTimer) clearInterval(bannerTimer)
-}
-function setBannerIndex(i) {
-  bannerIndex.value = i
-  stopBannerTimer()
-  startBannerTimer()
-}
-
-// 老婆列表占位（后续接 CRUD）
 const waifuList = ref([
   { id: '1', name: '示例老婆', art: 'https://picsum.photos/400/600?random=waifu1', source: '示例作品', note: '占位数据，后续可增删改' },
 ])
 
-// Flow 横向流用的卡片（老婆 + 美图混合）
-const flowCards = computed(() => [
-  ...waifuList.value.map(w => ({ type: 'waifu', id: w.id, title: w.name, thumb: w.art, to: 'waifu' })),
-  ...meituList.slice(0, 4).map(m => ({ type: 'meitu', id: m.id, title: m.title, thumb: m.thumb, to: 'meitu' })),
-])
+const topicTabs = computed(() => tabs.filter(x => x.id !== 'flow'))
 
-// 最新条目（可后续接真实数据）
 const latestEntries = computed(() => [
   ...waifuList.value.map(w => ({ label: w.name, to: 'waifu' })),
   { label: '美图一览', to: 'meitu' },
@@ -112,56 +95,15 @@ function onBreadcrumbNavigate(to) {
   else if (to) setTab(to)
 }
 
-function playVideo(item) {
-  currentVideo.value = item
-  nextTick(() => {
-    if (videoPlayer.value) {
-      videoPlayer.value.load()
-      videoPlayer.value.play().catch(() => {})
-    }
-  })
+function onFlowNavigate(to) {
+  setTab(to)
 }
 </script>
 
 <template>
-  <header class="private-header wiki-nav">
-    <div class="wiki-nav-left">
-      <a href="#" class="wiki-logo" @click.prevent="setTab('flow')">私站</a>
-      <nav class="wiki-nav-links">
-        <a href="#" class="wiki-nav-link" @click.prevent="setTab('flow')">导航</a>
-        <a href="#" class="wiki-nav-link wiki-nav-link-drop">
-          帮助 <i class="fas fa-chevron-down"></i>
-        </a>
-        <a href="#" class="wiki-nav-link wiki-nav-link-drop">
-          关注我们 <i class="fas fa-chevron-down"></i>
-        </a>
-        <a href="#" class="wiki-nav-link" @click.prevent="setTab('waifu')">
-          <i class="fas fa-briefcase"></i> 创作中心
-        </a>
-      </nav>
-    </div>
-    <div class="wiki-nav-search">
-      <i class="fas fa-search wiki-search-icon"></i>
-      <input
-        type="search"
-        class="wiki-search-input"
-        placeholder="搜索..."
-        aria-label="搜索"
-      />
-    </div>
-    <div class="wiki-nav-right">
-      <span class="wiki-user-avatar" aria-hidden="true"></span>
-      <a href="#" class="wiki-member">
-        <span class="wiki-member-icon"><i class="fas fa-crown"></i></span>
-        <span class="wiki-member-label">会员</span>
-      </a>
-      <button type="button" class="wiki-btn-create" @click="setTab('waifu')">
-        <i class="fas fa-feather"></i> 创建
-      </button>
-    </div>
-  </header>
+  <LayoutHeader :active-tab="activeTab" @change-tab="setTab" />
 
-  <main class="private-main">
+  <LayoutMain>
     <Breadcrumb
       v-if="breadcrumbItems.length"
       :items="breadcrumbItems"
@@ -169,268 +111,51 @@ function playVideo(item) {
       @navigate="onBreadcrumbNavigate"
     />
 
-    <!-- 首页：萌娘百科 Flow 式布局（顶栏 + 分类栏 + 主区 + 右侧栏） -->
     <section class="private-section flow-page" :class="{ active: activeTab === 'flow' }">
-      <!-- 分类导航栏（仿萌百：无限瀑布流 / 帖子文章 / ACGN·专题 / 创作中心） -->
-      <nav class="flow-category-nav">
-        <button type="button" class="flow-category-btn active">无限瀑布流</button>
-        <button type="button" class="flow-category-btn" @click="setTab('meitu')">美图 · 二次元</button>
-        <button type="button" class="flow-category-btn" @click="setTab('pixiv')">Pixiv</button>
-        <button type="button" class="flow-category-btn" @click="setTab('video')">视频</button>
-        <button type="button" class="flow-category-btn" @click="setTab('waifu')">创作中心</button>
-      </nav>
-
-      <div class="flow-layout">
-        <!-- 主内容区 -->
-        <div class="flow-main">
-          <div class="flow-welcome">
-            <p class="flow-welcome-text">你好～欢迎来到私站！</p>
-          </div>
-
-          <div class="flow-carousel-wrap">
-            <div class="flow-carousel">
-              <div
-                v-for="(slide, index) in bannerSlides"
-                :key="slide.id"
-                class="flow-banner"
-                :class="{ active: index === activeBannerIndex }"
-              >
-                <div class="flow-banner-left">
-                  <div class="flow-banner-tag">广告位招租</div>
-                  <h2 class="flow-banner-title">{{ slide.title }}</h2>
-                  <p class="flow-banner-subtitle">{{ slide.subtitle }}</p>
-                  <p class="flow-banner-desc">{{ slide.description }}</p>
-                  <button
-                    type="button"
-                    class="flow-banner-cta"
-                    @click="setTab('waifu')"
-                  >
-                    立刻创建我的老婆
-                  </button>
-                </div>
-                <div class="flow-banner-right">
-                  <div class="flow-banner-image" aria-hidden="true"></div>
-                </div>
-              </div>
-              <div
-                v-if="bannerSlides.length > 1"
-                class="flow-banner-dots"
-              >
-                <button
-                  v-for="(slide, index) in bannerSlides"
-                  :key="slide.id + '-dot'"
-                  type="button"
-                  class="flow-banner-dot"
-                  :class="{ active: index === activeBannerIndex }"
-                  @click="activeBannerIndex = index"
-                  aria-label="切换 Banner"
-                ></button>
-              </div>
-            </div>
-          </div>
-
-          <div class="flow-promo wiki-block">
-            <p>在这里可以浏览<strong>美图</strong>、<strong>二次元</strong>、<strong>Pixiv 每日一图</strong>与<strong>视频</strong>，还能管理<strong>我推的老婆</strong>～</p>
-          </div>
-
-          <div class="flow-topics wiki-block">
-            <h3 class="wiki-block-title">专题导航</h3>
-            <div class="topic-grid">
-              <button
-                v-for="t in tabs.filter(x => x.id !== 'flow')"
-                :key="t.id"
-                type="button"
-                class="topic-card"
-                @click="setTab(t.id)"
-              >
-                <i class="fas" :class="t.icon"></i>
-                <span>{{ t.label }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="flow-follow wiki-block">
-            <h3 class="wiki-block-title">关于私站</h3>
-            <p>私站用于存放美图、二次元、Pixiv 插画、视频与「我推的老婆」列表，万物皆可萌～</p>
-          </div>
-        </div>
-
-        <!-- 右侧栏（仿萌百：统计卡片 + 绿色按钮 + 最新条目） -->
-        <aside class="flow-sidebar">
-          <div class="flow-sidebar-card wiki-block">
-            <div class="flow-sidebar-logo"><i class="fas fa-heart"></i> 私站</div>
-            <p class="flow-sidebar-desc">万物皆可萌的小站</p>
-            <p class="flow-stats-inline">{{ waifuList.length }} 位老婆 · {{ meituList.length + erciyuanList.length }} 张图</p>
-            <div class="flow-sidebar-btns">
-              <button type="button" class="flow-btn-primary" @click="setTab('waifu')"><i class="fas fa-plus"></i> 添加老婆</button>
-              <button type="button" class="flow-btn-primary" @click="setTab('flow')"><i class="fas fa-random"></i> 随机看看</button>
-            </div>
-          </div>
-          <div class="flow-sidebar-card wiki-block">
-            <div class="flow-sidebar-tabs">
-              <span class="flow-sidebar-tab active">最新条目</span>
-            </div>
-            <ul class="flow-sidebar-list">
-              <li v-for="(ent, i) in latestEntries" :key="i">
-                <a v-if="ent.to" href="#" class="flow-sidebar-link" @click.prevent="setTab(ent.to)">{{ ent.label }}</a>
-                <span v-else class="flow-sidebar-link plain">{{ ent.label }}</span>
-              </li>
-            </ul>
-          </div>
-        </aside>
-      </div>
-
-      <footer class="flow-footer">
-        <span class="flow-footer-label">帮助 · 统计</span>
-        <a href="#" class="flow-footer-link" @click.prevent="setTab('waifu')">老婆列表</a>
-        <span class="flow-footer-sep">·</span>
-        <a href="#" class="flow-footer-link" @click.prevent="setTab('meitu')">美图</a>
-        <span class="flow-footer-sep">·</span>
-        <a href="#" class="flow-footer-link" @click.prevent="setTab('video')">视频</a>
-      </footer>
+      <FlowPage
+        :banner-slides="bannerSlides"
+        :topic-tabs="topicTabs"
+        :waifu-count="waifuList.length"
+        :image-count="meituList.length + erciyuanList.length"
+        :latest-entries="latestEntries"
+        @change-tab="setTab"
+        @navigate="onFlowNavigate"
+        @add-waifu="setTab('waifu')"
+        @random="setTab('flow')"
+        @banner-cta="setTab('waifu')"
+      />
     </section>
 
     <section class="private-section" :class="{ active: activeTab === 'meitu' }">
-      <h2 class="section-title"><i class="fas fa-image"></i> 美图</h2>
-      <div class="gallery-grid">
-        <a
-          v-for="item in meituList"
-          :key="item.id"
-          class="gallery-card"
-          :href="item.thumb"
-          target="_blank"
-          rel="noopener"
-        >
-          <img class="thumb" :src="item.thumb" :alt="item.title" loading="lazy" />
-          <div class="info"><strong>{{ item.title }}</strong></div>
-        </a>
-      </div>
+      <MeituGallery :items="meituList" />
     </section>
 
     <section class="private-section" :class="{ active: activeTab === 'erciyuan' }">
-      <h2 class="section-title"><i class="fas fa-star"></i> 二次元</h2>
-      <div class="gallery-grid">
-        <a
-          v-for="item in erciyuanList"
-          :key="item.id"
-          class="gallery-card"
-          :href="item.thumb"
-          target="_blank"
-          rel="noopener"
-        >
-          <img class="thumb" :src="item.thumb" :alt="item.title" loading="lazy" />
-          <div class="info"><strong>{{ item.title }}</strong></div>
-        </a>
-      </div>
+      <ErciyuanGallery :items="erciyuanList" />
     </section>
 
     <section class="private-section" :class="{ active: activeTab === 'pixiv' }">
-      <h2 class="section-title"><i class="fas fa-palette"></i> Pixiv 每日一图</h2>
-      <div class="pixiv-daily">
-        <div class="daily-image-wrap">
-          <img :src="pixivDaily.image" :alt="pixivDaily.title" loading="lazy" />
-        </div>
-        <div class="daily-meta">
-          <span>{{ pixivDaily.title }}</span>
-          <span v-if="pixivDaily.author"> · {{ pixivDaily.author }}</span>
-          <a v-if="pixivDaily.link" :href="pixivDaily.link" target="_blank" rel="noopener">查看原图</a>
-        </div>
-      </div>
-      <p class="empty-state">
-        <i class="fas fa-info-circle"></i><br />
-        接入 Pixiv API 后可在此展示每日推荐插画。
-      </p>
+      <PixivDaily :daily="pixivDaily" />
     </section>
 
     <section class="private-section" :class="{ active: activeTab === 'video' }">
-      <h2 class="section-title"><i class="fas fa-play"></i> 视频</h2>
-      <div class="video-section">
-        <div class="video-player-wrap" v-if="currentVideo">
-          <video
-            ref="videoPlayer"
-            controls
-            playsinline
-            :poster="currentVideo.thumb"
-            :src="currentVideo.src"
-          />
-        </div>
-        <div class="video-list">
-          <div
-            v-for="item in videoList"
-            :key="item.id"
-            class="video-item"
-            :class="{ playing: currentVideo && currentVideo.id === item.id }"
-            @click="playVideo(item)"
-          >
-            <div class="thumb-wrap">
-              <img :src="item.thumb" :alt="item.title" />
-              <div class="play-overlay"><i class="fas fa-play"></i></div>
-            </div>
-            <div class="title">{{ item.title }}</div>
-          </div>
-        </div>
-      </div>
+      <VideoSection
+        :list="videoList"
+        :current="currentVideo"
+        @select="currentVideo = $event"
+      />
     </section>
 
     <section class="private-section" :class="{ active: activeTab === 'waifu' }">
-      <h2 class="section-title"><i class="fas fa-heart"></i> 我推的老婆</h2>
-      <div class="waifu-layout">
-        <aside class="waifu-art">
-          <template v-if="waifuView === 'list'">
-            <div class="waifu-art-placeholder">选一位查看立绘</div>
-          </template>
-          <template v-else>
-            <img
-              v-if="currentWaifu?.art"
-              :src="currentWaifu.art"
-              :alt="currentWaifu.name"
-            />
-            <div v-else class="waifu-art-placeholder">暂无立绘</div>
-          </template>
-        </aside>
-        <div class="waifu-info">
-          <template v-if="waifuView === 'list'">
-            <p class="empty-state">点击下方卡片可进入详情（CRUD 后续完善）</p>
-            <div class="waifu-list-grid">
-              <div
-                v-for="w in waifuList"
-                :key="w.id"
-                class="waifu-list-card"
-                @click="currentWaifu = w; waifuView = 'detail'"
-              >
-                <img class="art" :src="w.art" :alt="w.name" loading="lazy" />
-                <div class="name">{{ w.name }}</div>
-              </div>
-            </div>
-            <div class="waifu-actions">
-              <button type="button" class="private-nav-btn active" @click="waifuView = 'add'">
-                <i class="fas fa-plus"></i> 添加老婆
-              </button>
-            </div>
-          </template>
-          <template v-else-if="waifuView === 'add'">
-            <div class="waifu-info-card">
-              <h3><i class="fas fa-plus"></i> 添加</h3>
-              <p class="empty-state">表单占位，后续接 CRUD</p>
-              <button type="button" class="private-nav-btn" @click="waifuView = 'list'">返回列表</button>
-            </div>
-          </template>
-          <template v-else>
-            <div class="waifu-info-card" v-if="currentWaifu">
-              <h3><i class="fas fa-user"></i> 基本信息</h3>
-              <div class="waifu-info-row"><span class="waifu-info-label">名字</span><span class="waifu-info-value">{{ currentWaifu.name }}</span></div>
-              <div class="waifu-info-row"><span class="waifu-info-label">出处</span><span class="waifu-info-value">{{ currentWaifu.source }}</span></div>
-              <div class="waifu-info-row"><span class="waifu-info-label">备注</span><span class="waifu-info-value">{{ currentWaifu.note }}</span></div>
-            </div>
-            <div class="waifu-actions">
-              <button type="button" class="private-nav-btn" @click="waifuView = 'edit'"><i class="fas fa-edit"></i> 编辑</button>
-              <button type="button" class="private-nav-btn" @click="waifuView = 'list'; currentWaifu = null"><i class="fas fa-list"></i> 返回列表</button>
-            </div>
-          </template>
-        </div>
-      </div>
+      <WaifuSection
+        :view="waifuView"
+        :list="waifuList"
+        :current="currentWaifu"
+        @select="currentWaifu = $event"
+        @set-view="waifuView = $event"
+      />
     </section>
-  </main>
+  </LayoutMain>
 
   <div class="private-footer"></div>
 </template>

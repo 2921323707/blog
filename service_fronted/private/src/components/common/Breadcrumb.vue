@@ -64,3 +64,70 @@ function getIcon(item, index) {
     </ol>
   </nav>
 </template>
+
+<style scoped>
+.breadcrumb {
+  margin-bottom: 16px;
+}
+.breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.breadcrumb-sep {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 6px;
+  color: var(--private-muted);
+}
+.breadcrumb-sep-char {
+  font-size: 0.85rem;
+  user-select: none;
+}
+.breadcrumb-sep-img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  opacity: 0.8;
+}
+.breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--private-radius-sm);
+  color: var(--private-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 0.2s, background 0.2s;
+}
+a.breadcrumb-link {
+  cursor: pointer;
+}
+a.breadcrumb-link:hover {
+  color: var(--private-accent);
+  background: var(--private-accent-soft);
+}
+.breadcrumb-link.is-current {
+  color: var(--private-text);
+  font-weight: 500;
+}
+.breadcrumb-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.breadcrumb-label {
+  white-space: nowrap;
+}
+</style>
