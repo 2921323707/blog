@@ -346,7 +346,7 @@ body.ai-chat-open
 .ai-chat-float-btn
   position: fixed
   right: 16px
-  bottom: 16px
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px))
   z-index: 1002
   display: flex
   align-items: center

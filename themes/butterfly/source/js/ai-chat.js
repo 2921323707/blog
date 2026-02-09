@@ -21,6 +21,7 @@
     close: null,
     messages: null,
     input: null,
+    inputWrap: null,
     sendBtn: null,
     btn: null,
     initialized: false
@@ -333,17 +334,34 @@
     }
   }
 
-  // 更新输入框位置（跟随键盘）
+  // 更新输入框位置（跟随键盘，仅移动端）
   const updateInputPosition = () => {
-    const { input: inputWrap } = cache
+    if (window.innerWidth > 768) return
+    const { inputWrap } = cache
     if (!inputWrap) return
 
-    // 使用 visualViewport API 获取实际视口高度
     const vv = window.visualViewport
     if (vv) {
       const offset = window.innerHeight - vv.height
       inputWrap.style.bottom = `${Math.max(0, offset)}px`
     }
+  }
+
+  // ESC 键关闭（命名函数便于 PJAX 时移除）
+  const handleEscKey = (e) => {
+    if (e.key === 'Escape' && cache.dialog?.style.display === 'flex') {
+      closeDialog()
+    }
+  }
+
+  // 移除全局监听（PJAX 重新初始化前调用，避免重复注册）
+  const removeGlobalListeners = () => {
+    document.removeEventListener('keydown', handleEscKey)
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', updateInputPosition)
+      window.visualViewport.removeEventListener('scroll', updateInputPosition)
+    }
+    window.removeEventListener('resize', updateInputPosition)
   }
 
   // 初始化事件绑定
@@ -375,13 +393,9 @@
     sendBtn?.addEventListener('click', sendMessage)
 
     // ESC 键关闭
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && dialog.style.display === 'flex') {
-        closeDialog()
-      }
-    })
+    document.addEventListener('keydown', handleEscKey)
 
-    // 键盘事件监听（0延迟）
+    // 键盘事件监听（移动端输入框跟随键盘）
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', updateInputPosition, { passive: true })
       window.visualViewport.addEventListener('scroll', updateInputPosition, { passive: true })
@@ -424,12 +438,12 @@
 
   // 初始化入口
   const init = () => {
-    // 缓存所有元素
     cache.dialog = document.getElementById('ai-chat-dialog')
     cache.mask = document.getElementById('ai-chat-mask')
     cache.close = document.getElementById('ai-chat-close')
     cache.messages = document.getElementById('ai-chat-messages')
     cache.input = document.querySelector('.ai-chat-input')
+    cache.inputWrap = document.querySelector('.ai-chat-input-wrap')
     cache.sendBtn = document.querySelector('.ai-chat-send-btn')
 
     ensureButton()
@@ -445,10 +459,12 @@
 
   // PJAX 加载完成后重新初始化
   document.addEventListener('pjax:complete', () => {
+    removeGlobalListeners()
     cache.initialized = false
     cache.dialog = null
     cache.mask = null
     cache.messages = null
+    cache.inputWrap = null
     init()
   })
 })()
