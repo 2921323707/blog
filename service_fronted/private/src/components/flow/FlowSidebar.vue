@@ -4,10 +4,11 @@ import FlowSidebarStats from './FlowSidebarStats.vue'
 import FlowSidebarLatest from './FlowSidebarLatest.vue'
 
 const BASE = import.meta.env.BASE_URL || '/'
-const RIGHT_BANNER = BASE + 'side/right.png'
-const rightLoaded = ref(true)
-function onRightError() {
-  rightLoaded.value = false
+// 侧边栏插图使用 banner_girl 文件夹中的图片
+const SIDEBAR_FIGURE = BASE + 'banner_girl/1.png'
+const figureLoaded = ref(true)
+function onFigureError() {
+  figureLoaded.value = false
 }
 
 defineProps({
@@ -32,11 +33,11 @@ const emit = defineEmits(['navigate', 'add-waifu', 'random'])
     />
     <div class="flow-sidebar-figure">
       <img
-        v-if="rightLoaded"
-        :src="RIGHT_BANNER"
+        v-if="figureLoaded"
+        :src="SIDEBAR_FIGURE"
         alt=""
         loading="lazy"
-        @error="onRightError"
+        @error="onFigureError"
       />
     </div>
   </aside>

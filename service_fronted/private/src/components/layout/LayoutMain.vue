@@ -23,7 +23,7 @@ function onRightError() {
         <div class="private-live2d-slot"><!-- Live2D 挂载点（可选） --></div>
         <SideMusicPlayer
           :playlist-id="qqPlaylistId"
-          :mini="true"
+          :mini="false"
           :fixed="false"
         />
       </div>
@@ -38,6 +38,7 @@ function onRightError() {
           loading="lazy"
           @error="onRightError"
         />
+        <div v-else class="private-side-right-fallback">图片加载失败</div>
       </div>
     </aside>
     <main class="private-main">
@@ -124,7 +125,13 @@ function onRightError() {
   min-height: 400px;
   max-height: calc(100vh - var(--private-header-h) - 48px);
   object-fit: contain;
-  object-position: center center;
+  object-position: 60% 95%;
   display: block;
+  transform: translate(16px, 24px);
+}
+.private-side-right-fallback {
+  font-size: 0.85rem;
+  color: var(--private-muted, #888);
+  padding: 1rem;
 }
 </style>

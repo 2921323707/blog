@@ -9,7 +9,7 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 const props = defineProps({
   /** QQ 音乐歌单 ID（分享链接中的 id 参数） */
   playlistId: { type: String, default: '' },
-  /** 迷你模式，列表折叠 */
+  /** 迷你模式（紧凑样式），歌单默认展开可点击切歌 */
   mini: { type: Boolean, default: true },
   /** 是否固定样式（已由布局固定在左下角） */
   fixed: { type: Boolean, default: false },
