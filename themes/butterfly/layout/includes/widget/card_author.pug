@@ -24,3 +24,5 @@ if theme.aside.card_author.enable
     if(theme.social)
       .card-info-social-icons
         !=partial('includes/header/social', {}, {cache: true})
+        a.social-icon(href="/private" target="_blank" title="私站" rel="noopener")
+          i.fas.fa-image(style="color: #e91e63;")

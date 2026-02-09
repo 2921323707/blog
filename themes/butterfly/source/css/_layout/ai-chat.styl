@@ -1,13 +1,27 @@
 // AI Chat 组件 - 透明磨砂质感版本
 
 // 弹窗打开时锁定背景滚动（解决移动端滑动时背景在动的问题）
-body.ai-chat-open
+// 同时锁 html 和 body，避免 iOS 等设备上仍滚动主文档
+html.ai-chat-open
   overflow: hidden
+  overscroll-behavior: none
   +maxWidth768()
     position: fixed
     left: 0
     right: 0
     width: 100%
+    height: 100%
+
+body.ai-chat-open
+  overflow: hidden
+  overscroll-behavior: none
+  +maxWidth768()
+    position: fixed
+    left: 0
+    right: 0
+    width: 100%
+    top: 0
+    bottom: 0
 
 // 遮罩层
 #ai-chat-mask
@@ -67,6 +81,8 @@ body.ai-chat-open
     backdrop-filter: blur(20px)
     -webkit-backdrop-filter: blur(20px)
     background: rgba(255, 255, 255, .95)
+    // 仅消息区允许纵向滑动，其余区域不把触摸传给底层，避免主页滚动
+    touch-action: none
 
     [data-theme='dark'] &
       background: rgba(30, 30, 30, .95)
@@ -159,6 +175,8 @@ body.ai-chat-open
   +maxWidth768()
     padding: 8px 4px
     border-radius: 0
+    // 仅此区域允许纵向滑动，触摸不会穿透到底层页面
+    touch-action: pan-y
 
 // 底部输入区域
 .ai-chat-input-wrap
@@ -224,15 +242,19 @@ body.ai-chat-open
   display: flex
   align-items: center
   justify-content: center
+  flex-shrink: 0
   width: 36px
+  min-width: 36px
   height: 36px
+  min-height: 36px
   border: none
   border-radius: 50%
-  // 柔和的灰色按钮
+  // 柔和的灰色按钮；固定宽高保证正圆，避免移动端被压成椭圆
   background: rgba(107, 114, 128, .9)
   color: #fff
   cursor: pointer
   transition: transform .1s, opacity .2s, background .2s
+  box-sizing: border-box
 
   &:active
     transform: scale(.95)
@@ -378,3 +400,77 @@ body.ai-chat-open
     transition: none
   #ai-chat-mask
     transition: none
+
+// AI 板块页面：入口卡片（支持拓展列表）
+.ai-page-assistant
+  margin-bottom: 2rem
+  display: flex
+  flex-direction: column
+  gap: 1.25rem
+
+.ai-page-assistant__card
+  padding: 1.5rem 1.75rem
+  border-radius: 12px
+  background: rgba(255, 255, 255, 0.6)
+  backdrop-filter: blur(12px)
+  -webkit-backdrop-filter: blur(12px)
+  border: 1px solid rgba(0, 0, 0, 0.06)
+  [data-theme='dark'] &
+    background: rgba(30, 30, 30, 0.6)
+    border-color: rgba(255, 255, 255, 0.08)
+
+.ai-page-assistant__head
+  display: flex
+  align-items: center
+  gap: 0.6rem
+  margin-bottom: 0.75rem
+
+.ai-page-assistant__icon
+  color: var(--theme-color, #49b1f5)
+  font-size: 1.5rem
+
+.ai-page-assistant__title
+  margin: 0
+  font-size: 1.25rem
+  font-weight: 600
+
+.ai-page-assistant__desc
+  margin: 0 0 1.25rem
+  color: var(--font-color)
+  font-size: 0.95rem
+  line-height: 1.6
+  opacity: 0.9
+
+.ai-page-assistant__btn
+  display: inline-flex
+  align-items: center
+  gap: 0.5rem
+  padding: 0.6rem 1.25rem
+  border: none
+  border-radius: 8px
+  background: var(--theme-color, #49b1f5)
+  color: #fff
+  font-size: 0.95rem
+  cursor: pointer
+  transition: opacity 0.2s, transform 0.15s
+  text-decoration: none
+  &:hover
+    opacity: 0.9
+    transform: translateY(-1px)
+  &:active
+    transform: translateY(0)
+  &--primary
+    cursor: pointer
+  &--disabled
+    cursor: default
+    background: rgba(0, 0, 0, 0.12)
+    color: var(--font-color)
+    opacity: 0.85
+    [data-theme='dark'] &
+      background: rgba(255, 255, 255, 0.12)
+    &:hover
+      transform: none
+      opacity: 0.85
+
+.ai-page-content
+  margin-top: 1.5rem

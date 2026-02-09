@@ -1,0 +1,43 @@
+#article-container.container
+  .ai-page-assistant
+    //- 内置：嘟嘟可（博客 RAG 助手）
+    .ai-page-assistant__card
+      .ai-page-assistant__head
+        span.ai-page-assistant__icon
+          i.fas.fa-robot(aria-hidden="true")
+        h2.ai-page-assistant__title 嘟嘟可 · 博客 AI 助手
+      p.ai-page-assistant__desc 基于博客文章的 RAG 助手，可直接提问「这篇文章讲了什么」「某个概念在哪里提到」「推荐相关阅读」等，会引用文章来源。
+      button.ai-page-assistant__btn.ai-page-assistant__btn--primary#ai-page-open-chat(type="button" title="打开嘟嘟可")
+        i.fas.fa-comments(aria-hidden="true")
+        span 打开嘟嘟可
+
+    //- 拓展列表：由 front matter 的 extensions 配置
+    if page.extensions && page.extensions.length
+      each ext in page.extensions
+        - const hasLink = ext.link && ext.link !== '#'
+        - const icon = ext.icon || 'fa-puzzle-piece'
+        .ai-page-assistant__card
+          .ai-page-assistant__head
+            span.ai-page-assistant__icon
+              i.fas(class=icon aria-hidden="true")
+            h2.ai-page-assistant__title= ext.title
+          if ext.description
+            p.ai-page-assistant__desc= ext.description
+          if hasLink
+            a.ai-page-assistant__btn(href=ext.link target="_blank" rel="noopener noreferrer" title=ext.button || '打开')
+              i.fas.fa-external-link-alt(aria-hidden="true")
+              span= ext.button || '打开'
+          else
+            span.ai-page-assistant__btn.ai-page-assistant__btn--disabled
+              span= ext.button || '即将上线'
+
+    script.
+      (function() {
+        var btn = document.getElementById('ai-page-open-chat');
+        if (btn) btn.addEventListener('click', function() {
+          var chatBtn = document.getElementById('ai-chat-btn');
+          if (chatBtn) chatBtn.click();
+        });
+      })();
+  .ai-page-content
+    != page.content

@@ -1,11 +1,16 @@
 if theme.Open_Graph_meta.enable
   -
     const coverVal = page.cover_type === 'img' ? page.cover : theme.avatar.img
+    const isSubtitle = config.subtitle ? ' - ' + config.subtitle : ''
+    const ogTitle = globalPageType === 'home' || !(page.title || page.tag || page.category) ? (config.title + isSubtitle) : ((page.title || page.tag || page.category || config.title) + ' | ' + config.title)
+    const ogDesc = (globalPageType === 'home' ? config.description : (page.description || null)) || undefined
     let ogOption = Object.assign({
       type: globalPageType === 'post' ? 'article' : 'website',
       image: coverVal ? full_url_for(coverVal) : '',
       fb_admins: theme.facebook_comments.user_id || '',
       fb_app_id: theme.facebook_comments.app_id || '',
+      title: ogTitle,
+      description: ogDesc
     }, theme.Open_Graph_meta.option)
   -
   != open_graph(ogOption)

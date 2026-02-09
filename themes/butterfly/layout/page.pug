@@ -27,6 +27,9 @@ block content
         include includes/page/404.pug
       when 'shuoshuo'
         include includes/page/shuoshuo.pug
+      when 'ai'
+        include includes/page/ai.pug
+        +commentLoad
       default
         include includes/page/default-page.pug
         +commentLoad
