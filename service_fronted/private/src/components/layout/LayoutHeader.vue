@@ -22,10 +22,11 @@ const navDropdownOpen = ref(false)
 
 const navItems = [
   { id: 'flow', label: '首页' },
-  { id: 'meitu', label: '美图' },
+  { id: 'meitu', label: '旅行' },
   { id: 'erciyuan', label: '二次元' },
-  { id: 'pixiv', label: 'Pixiv' },
-  { id: 'video', label: '视频' },
+  // 原 Pixiv 导航，改为订阅中心，保留 pixiv 作为内部 tab id
+  { id: 'pixiv', label: '订阅' },
+  { id: 'video', label: '别点我' },
   { id: 'waifu', label: '创作中心' },
 ]
 

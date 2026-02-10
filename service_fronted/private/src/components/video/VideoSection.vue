@@ -1,5 +1,6 @@
 <script setup>
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, onBeforeUnmount } from 'vue'
+import Hls from 'hls.js'
 
 const props = defineProps({
   list: { type: Array, default: () => [] },
@@ -8,15 +9,73 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const videoPlayer = ref(null)
+let hlsInstance = null
+
+/** 是否为 HLS/m3u8 地址（含第三方资源站常见 m3u8 链接） */
+function isHlsSource(src) {
+  if (!src || typeof src !== 'string') return false
+  return /\.m3u8(\?|$)/i.test(src) || src.includes('m3u8')
+}
+
+/** 使用原生 src（MP4 等）或 Safari 下原生 HLS */
+function setNativeSource(el, src) {
+  if (!el) return
+  el.src = src || ''
+  el.load()
+  el.play().catch(() => {})
+}
+
+/** 使用 Hls.js 播放 m3u8 */
+function setHlsSource(el, src) {
+  if (!el || !src) return
+  destroyHls()
+  el.src = ''
+  // Safari 等原生支持 HLS 的浏览器直接用 src
+  if (el.canPlayType('application/vnd.apple.mpegurl')) {
+    setNativeSource(el, src)
+    return
+  }
+  if (!Hls.isSupported()) {
+    setNativeSource(el, src)
+    return
+  }
+  hlsInstance = new Hls({
+    maxBufferLength: 30,
+    maxMaxBufferLength: 60,
+  })
+  hlsInstance.attachMedia(el)
+  hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+    el.play().catch(() => {})
+  })
+  hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+    if (data.fatal) {
+      destroyHls()
+    }
+  })
+  hlsInstance.loadSource(src)
+}
+
+function destroyHls() {
+  if (hlsInstance) {
+    hlsInstance.destroy()
+    hlsInstance = null
+  }
+}
 
 watch(() => props.current, (cur) => {
   nextTick(() => {
-    if (videoPlayer.value && cur) {
-      videoPlayer.value.load()
-      videoPlayer.value.play().catch(() => {})
+    const el = videoPlayer.value
+    if (!el || !cur?.src) return
+    if (isHlsSource(cur.src)) {
+      setHlsSource(el, cur.src)
+    } else {
+      destroyHls()
+      setNativeSource(el, cur.src)
     }
   })
 }, { immediate: true })
+
+onBeforeUnmount(destroyHls)
 
 function play(item) {
   emit('select', item)
@@ -25,7 +84,7 @@ function play(item) {
 
 <template>
   <div>
-    <h2 class="section-title"><i class="fas fa-play"></i> 视频</h2>
+    <h2 class="section-title"><i class="fas fa-play"></i> 别点我</h2>
     <div class="video-section">
       <div class="video-player-wrap" v-if="current">
         <video
@@ -33,7 +92,6 @@ function play(item) {
           controls
           playsinline
           :poster="current.thumb"
-          :src="current.src"
         />
       </div>
       <div class="video-list">

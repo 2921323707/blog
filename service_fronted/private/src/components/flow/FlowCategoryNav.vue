@@ -5,9 +5,9 @@ const emit = defineEmits(['change-tab'])
 <template>
   <nav class="flow-category-nav">
     <button type="button" class="flow-category-btn active">无限瀑布流</button>
-    <button type="button" class="flow-category-btn" @click="emit('change-tab', 'meitu')">美图 · 二次元</button>
+    <button type="button" class="flow-category-btn" @click="emit('change-tab', 'meitu')">旅行 · 二次元</button>
     <button type="button" class="flow-category-btn" @click="emit('change-tab', 'pixiv')">Pixiv</button>
-    <button type="button" class="flow-category-btn" @click="emit('change-tab', 'video')">视频</button>
+    <button type="button" class="flow-category-btn" @click="emit('change-tab', 'video')">别点我</button>
     <button type="button" class="flow-category-btn" @click="emit('change-tab', 'waifu')">创作中心</button>
   </nav>
 </template>

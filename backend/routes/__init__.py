@@ -1,5 +1,6 @@
 from flask import Blueprint
 
+
 def register_routes(app):
     """注册所有路由到应用"""
     from . import comments, posts, images, frontend, stats, rag_bot, setu

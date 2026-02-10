@@ -7,9 +7,9 @@ const emit = defineEmits(['navigate'])
     <span class="flow-footer-label">帮助 · 统计</span>
     <a href="#" class="flow-footer-link" @click.prevent="emit('navigate', 'waifu')">老婆列表</a>
     <span class="flow-footer-sep">·</span>
-    <a href="#" class="flow-footer-link" @click.prevent="emit('navigate', 'meitu')">美图</a>
+    <a href="#" class="flow-footer-link" @click.prevent="emit('navigate', 'meitu')">旅行相册</a>
     <span class="flow-footer-sep">·</span>
-    <a href="#" class="flow-footer-link" @click.prevent="emit('navigate', 'video')">视频</a>
+    <a href="#" class="flow-footer-link" @click.prevent="emit('navigate', 'video')">别点我</a>
   </footer>
 </template>
 

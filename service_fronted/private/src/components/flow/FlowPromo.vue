@@ -1,6 +1,6 @@
 <template>
   <div class="flow-promo wiki-block">
-    <p>在这里可以浏览<strong>美图</strong>、<strong>二次元</strong>、<strong>Pixiv 每日一图</strong>与<strong>视频</strong>，还能管理<strong>我推的老婆</strong>～</p>
+    <p>在这里可以浏览<strong>美图</strong>、<strong>二次元</strong>、<strong>Pixiv 每日一图</strong>与<strong>视频</strong>，还能管理<strong>我推的角色</strong>～</p>
   </div>
 </template>
 
