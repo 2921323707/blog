@@ -23,7 +23,7 @@ function onRightError() {
         <div class="private-live2d-slot"><!-- Live2D 挂载点（可选） --></div>
         <SideMusicPlayer
           :playlist-id="qqPlaylistId"
-          :mini="false"
+          :mini="true"
           :fixed="false"
         />
       </div>

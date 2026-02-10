@@ -3,11 +3,10 @@ import { ref, onMounted } from 'vue'
 import PixivDaily from '../pixiv/PixivDaily.vue'
 
 /**
- * 订阅中心新版布局：
- * - 左侧主列：资讯订阅（主）、微信公众号、B 站更新、自定义 RSS
+ * 订阅中心：
+ * - 上方：固定分组的精选 RSS 源（AI / 科技 / 市场）
+ * - 下方：用户自定义 RSS 源，自上而下每个源一张卡片预览
  * - 右侧侧栏：Pixiv 每日一图
- *
- * 实际生产中建议后端做统一聚合与缓存，这里以前端 + RSS 代理为示例。
  */
 
 const props = defineProps({
@@ -17,86 +16,134 @@ const props = defineProps({
   },
 })
 
-// 简单的数据结构定义（顺序即展示顺序：资讯 > 微信 > B 站）
-const channels = ref([
+// 固定分组 RSS 源（进入页面时默认拉取）
+const presetGroups = ref([
   {
-    id: 'news',
-    title: '资讯订阅',
-    icon: 'fa-newspaper',
-    desc: 'IT / ACG / 日常资讯，示例使用 RSS 聚合，可替换为你自己的后端接口。',
-    sources: [
+    id: 'ai',
+    title: 'AI 圈：从底层模型到应用落地',
+    intro: '这个圈子现在的核心是「Agentic Workflow」和「物理世界 AI」。',
+    feeds: [
       {
-        id: 'rss-36kr',
-        name: '36氪（示例）',
-        url: 'https://36kr.com/feed',
-        type: 'rss',
+        id: 'ai-theinformation',
+        name: 'The Information（AI 频道）',
+        comment: '特点：硅谷深度内幕，关于模型训练成本、高层变动的消息全网最快。',
+        url: 'https://www.theinformation.com/feed',
+        items: [],
+        loading: false,
+        error: '',
       },
       {
-        id: 'rss-smzdm',
-        name: '什么值得买（示例）',
-        url: 'https://post.smzdm.com/feed',
-        type: 'rss',
+        id: 'ai-theneuron',
+        name: 'The Neuron',
+        comment: '特点：专注于 AI 的商业应用，每天帮你总结哪些 AI 工具真正好用。',
+        url: 'https://www.theneuron.ai/feed',
+        items: [],
+        loading: false,
+        error: '',
+      },
+      {
+        id: 'ai-alphasignal',
+        name: 'AlphaSignal',
+        comment: '特点：技术流最爱，由 AI 算法筛选出的本周最值得读的机器学习论文和硬核进展。',
+        url: 'https://alphasignal.ai/feed',
+        items: [],
+        loading: false,
+        error: '',
+      },
+      {
+        id: 'ai-mittr',
+        name: 'MIT Technology Review（AI Section）',
+        comment: '特点：权威性极高，更侧重于 AI 的伦理、政策及长远影响。',
+        url: 'https://www.technologyreview.com/topic/artificial-intelligence/feed/',
+        items: [],
+        loading: false,
+        error: '',
       },
     ],
-    items: [],
-    loading: false,
-    error: '',
   },
   {
-    id: 'wechat',
-    title: '微信公众号',
-    icon: 'fa-weixin',
-    desc: '通过 RSSHub / 自建服务暴露为 RSS，再在此聚合展示。',
-    sources: [
+    id: 'tech',
+    title: '科技圈：泛科技与前沿趋势',
+    intro: '关注「AI 之后」的硬件变革（如 AI PC、机器人）和开发者生态。',
+    feeds: [
       {
-        id: 'rss-wechat-demo',
-        name: '示例公众号',
-        // 这里用 RSSHub 作为示例，实际请替换为你自己的地址
-        url: 'https://rsshub.app/wechat/channel/0',
-        type: 'rss',
+        id: 'tech-hn',
+        name: 'Hacker News（Best/Top Stories）',
+        comment: '特点：极客风向标，这里的讨论质量往往比新闻本身还高。',
+        url: 'https://news.ycombinator.com/rss',
+        items: [],
+        loading: false,
+        error: '',
+      },
+      {
+        id: 'tech-techcrunch',
+        name: 'TechCrunch',
+        comment: '特点：创投圈的「老字号」，看初创公司融资和独角兽动态的首选。',
+        url: 'https://techcrunch.com/feed/',
+        items: [],
+        loading: false,
+        error: '',
+      },
+      {
+        id: 'tech-theverge',
+        name: 'The Verge',
+        comment: '特点：偏消费电子和科技文化，排版审美极佳。',
+        url: 'https://www.theverge.com/rss/index.xml',
+        items: [],
+        loading: false,
+        error: '',
       },
     ],
-    items: [],
-    loading: false,
-    error: '',
   },
   {
-    id: 'bilibili',
-    title: 'Bilibili 更新',
-    icon: 'fa-bilibili', // 若无该图标，可用 fa-play-circle 代替
-    desc: '关注 UP 主投稿 / 收藏夹 / 专栏，推荐通过 RSSHub / 自建接口输出 RSS 或 JSON。',
-    sources: [
+    id: 'market',
+    title: '市场与投资圈：宏观风向与深度分析',
+    intro: '在 2026 年波动的市场环境下，你需要一手的数据和专业的研报总结。',
+    feeds: [
       {
-        id: 'rss-bilibili-demo',
-        name: '示例 UP 主',
-        url: 'https://rsshub.app/bilibili/user/video/2',
-        type: 'rss',
+        id: 'mkt-bloomberg',
+        name: 'Bloomberg Markets',
+        comment: '特点：全球市场的脉搏，数据驱动，极其客观。',
+        url: 'https://www.bloomberg.com/feeds/markets/index.xml',
+        items: [],
+        loading: false,
+        error: '',
+      },
+      {
+        id: 'mkt-ft',
+        name: 'Financial Times（FT.com）',
+        comment: '特点：深度财经评论，对于全球化投资风险的把控非常精准。',
+        url: 'https://www.ft.com/?format=rss',
+        items: [],
+        loading: false,
+        error: '',
+      },
+      {
+        id: 'mkt-seekingalpha',
+        name: 'Seeking Alpha',
+        comment: '特点：侧重个股分析和美股投资组合，汇集了大量个人投资者的实战见解。',
+        url: 'https://seekingalpha.com/feed',
+        items: [],
+        loading: false,
+        error: '',
+      },
+      {
+        id: 'mkt-livemint',
+        name: 'Livemint（Markets/AI）',
+        comment: '特点：关注新兴市场（如印度等）与科技的结合，是很好的观察入口。',
+        url: 'https://www.livemint.com/rss/markets',
+        items: [],
+        loading: false,
+        error: '',
       },
     ],
-    items: [],
-    loading: false,
-    error: '',
   },
 ])
 
-// 微信绑定信息（预留给后端，当前为前端占位展示）
-const wechatBindInfo = ref({
-  bound: false,
-  account: '',
-  followerCount: null,
-  lastSync: '',
-})
-
-// B 站 UID，可根据用户输入切换订阅源
-const bilibiliUid = ref('2')
-
-// 自定义 RSS：用户在前端临时添加，开发期方便调试
-const customUrl = ref('')
-const customFeeds = ref({
-  loading: false,
-  error: '',
-  items: [],
-})
+// 用户自定义 RSS 源列表（顺序即自上而下展示顺序）
+const customSources = ref([])
+const newSourceUrl = ref('')
+const newSourceName = ref('')
 
 // 简单的 RSS -> JSON 代理（示例用第三方服务，强烈建议换成你自己后端）
 const RSS_PROXY = import.meta.env.VITE_RSS_PROXY || 'https://api.rss2json.com/v1/api.json?rss_url='
@@ -122,361 +169,221 @@ async function fetchRss(url) {
   }
 }
 
-async function loadChannel(channel) {
-  channel.loading = true
-  channel.error = ''
-  try {
-    const all = []
-    for (const s of channel.sources) {
-      if (s.type === 'rss' && s.url) {
-        try {
-          const items = await fetchRss(s.url)
-          all.push(
-            ...items.map(x => ({
-              ...x,
-              _sourceId: s.id,
-              _sourceName: s.name,
-            })),
-          )
-        } catch (e) {
-          // 单个源失败仅记录日志，不影响其他源
-          console.warn('订阅源加载失败', s, e)
-        }
-      }
-    }
-    channel.items = all
-  } catch (e) {
-    channel.error = e?.message || '订阅数据加载失败'
-  } finally {
-    channel.loading = false
-  }
-}
-
-async function loadAllChannels() {
-  for (const c of channels.value) {
-    // 懒加载：页面首次挂载时加载一次
-    loadChannel(c)
-  }
-}
-
-// 「绑定」微信（当前为前端占位逻辑，后端接入后可替换为真实接口）
-function onMockWechatBind() {
-  const now = new Date()
-  wechatBindInfo.value = {
-    bound: true,
-    account: '示例公众号',
-    followerCount: 12345,
-    lastSync: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-      now.getDate(),
-    ).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(
-      now.getMinutes(),
-    ).padStart(2, '0')}`,
-  }
-}
-
-// 根据用户输入的 UID 更新 B 站订阅源，并重新拉取
-function applyBilibiliUid() {
-  const uid = bilibiliUid.value.trim()
-  if (!uid) return
-  const ch = channels.value.find(c => c.id === 'bilibili')
-  if (!ch) return
-  ch.sources = [
-    {
-      id: `rss-bilibili-${uid}`,
-      name: `UID ${uid}`,
-      url: `https://rsshub.app/bilibili/user/video/${uid}`,
-      type: 'rss',
-    },
-  ]
-  ch.items = []
-  loadChannel(ch)
-}
-
-async function onAddCustomRss() {
-  const url = customUrl.value.trim()
+async function addCustomSource() {
+  const url = newSourceUrl.value.trim()
   if (!url) return
-  customFeeds.value.loading = true
-  customFeeds.value.error = ''
-  customFeeds.value.items = []
+  const name = newSourceName.value.trim() || url
+  const id = `custom-${Date.now()}`
+  const entry = {
+    id,
+    name,
+    url,
+    items: [],
+    loading: true,
+    error: '',
+  }
+  customSources.value.push(entry)
+  newSourceUrl.value = ''
+  newSourceName.value = ''
   try {
-    customFeeds.value.items = await fetchRss(url)
+    entry.items = await fetchRss(url)
   } catch (e) {
-    customFeeds.value.error = e?.message || '自定义 RSS 加载失败'
+    entry.error = e?.message || 'RSS 加载失败'
   } finally {
-    customFeeds.value.loading = false
+    entry.loading = false
   }
 }
 
+function removeCustomSource(id) {
+  customSources.value = customSources.value.filter((s) => s.id !== id)
+}
+
+async function refreshSource(src) {
+  src.loading = true
+  src.error = ''
+  try {
+    src.items = await fetchRss(src.url)
+  } catch (e) {
+    src.error = e?.message || 'RSS 加载失败'
+  } finally {
+    src.loading = false
+  }
+}
+
+// 页面挂载时，自动拉取固定分组下的所有 RSS 源
 onMounted(() => {
-  loadAllChannels()
+  for (const group of presetGroups.value) {
+    for (const feed of group.feeds) {
+      refreshSource(feed)
+    }
+  }
 })
 </script>
 
 <template>
-  <div class="subscription-page">
-    <h2 class="subscription-title">
+  <div class="rss-page">
+    <h2 class="rss-page-title">
       <i class="fas fa-rss"></i>
       订阅中心
-      <span class="subscription-subtitle">左侧资讯流 / 微信 / B 站 · 右侧 Pixiv 每日一图</span>
+      <span class="rss-page-subtitle">AI / 科技 / 市场 · 底部自定义 RSS · 右侧 Pixiv</span>
     </h2>
 
-    <div class="subscription-layout">
-      <!-- 左侧主列：资讯订阅 / 微信公众号 / B 站更新 / 自定义 RSS -->
-      <div class="subscription-main">
+    <div class="rss-layout">
+      <div class="rss-main">
+        <!-- 固定分组：无 feed 头部，仅列表/加载/失败 -->
         <section
-          v-for="ch in channels"
-          :key="ch.id"
-          class="subscription-card"
-          :class="`subscription-card--${ch.id}`"
+          v-for="group in presetGroups"
+          :key="group.id"
+          class="rss-block rss-block--group"
         >
-          <header class="subscription-card-header">
-            <div class="subscription-card-title">
-              <i
-                v-if="ch.icon === 'fa-bilibili'"
-                class="fab fa-bilibili"
-              ></i>
-              <i
-                v-else
-                :class="['fas', ch.icon]"
-              ></i>
-              <span>{{ ch.title }}</span>
-            </div>
-            <p class="subscription-card-desc">
-              {{ ch.desc }}
-            </p>
+          <header class="rss-block-head">
+            <h3 class="rss-block-title">{{ group.title }}</h3>
+            <p class="rss-block-desc">{{ group.intro }}</p>
           </header>
-
-          <div class="subscription-card-body">
-            <!-- 微信公众号：绑定状态展示（预留后端能力） -->
+          <div class="rss-block-body">
             <div
-              v-if="ch.id === 'wechat'"
-              class="subscription-extra-row"
+              v-for="feed in group.feeds.filter(f => !f.error)"
+              :key="feed.id"
+              class="rss-feed"
             >
-              <div v-if="!wechatBindInfo.bound" class="subscription-extra-content">
-                <span class="extra-label">账号绑定：</span>
-                <span class="extra-text">当前未绑定，可在接入后端接口后，通过扫码/授权方式获取公众号关注情况与文章。</span>
-                <button
-                  type="button"
-                  class="subscription-btn subtle"
-                  @click="onMockWechatBind"
-                >
-                  模拟绑定预览
-                </button>
+              <div v-if="feed.loading" class="rss-state rss-state--loading">
+                <i class="fas fa-circle-notch fa-spin"></i>
+                加载中…
               </div>
-              <div v-else class="subscription-extra-content">
-                <span class="extra-label">已绑定账号：</span>
-                <span class="extra-tag">{{ wechatBindInfo.account }}</span>
-                <span v-if="wechatBindInfo.followerCount" class="extra-meta">
-                  关注人数约 {{ wechatBindInfo.followerCount.toLocaleString() }}
-                </span>
-                <span v-if="wechatBindInfo.lastSync" class="extra-meta">
-                  · 最近同步：{{ wechatBindInfo.lastSync }}
-                </span>
-              </div>
-            </div>
-
-            <!-- B 站：按用户 UID 拉取关注/投稿更新（通过 RSSHub 示例） -->
-            <div
-              v-if="ch.id === 'bilibili'"
-              class="subscription-extra-row"
-            >
-              <div class="subscription-extra-content">
-                <span class="extra-label">B 站 UID：</span>
-                <input
-                  v-model="bilibiliUid"
-                  type="text"
-                  inputmode="numeric"
-                  class="subscription-input slim"
-                  placeholder="输入你的 B 站 UID，如 2"
-                />
-                <button
-                  type="button"
-                  class="subscription-btn"
-                  @click="applyBilibiliUid"
-                >
-                  更新订阅
-                </button>
-              </div>
-              <p class="subscription-hint">
-                这里使用 RSSHub 的用户投稿 RSS 作为示例，实际项目可以改为「关注列表」或自建 JSON 接口。
-              </p>
-            </div>
-
-            <div v-if="ch.loading" class="subscription-empty">
-              <i class="fas fa-circle-notch fa-spin"></i>
-              正在加载订阅内容…
-            </div>
-            <div v-else-if="ch.error" class="subscription-empty error">
-              <i class="fas fa-exclamation-triangle"></i>
-              {{ ch.error }}（可在代码中替换为你自己的后端接口）
-            </div>
-            <template v-else>
-              <!-- B 站：卡片小窗预览 -->
-              <div
-                v-if="ch.id === 'bilibili' && ch.items && ch.items.length"
-                class="bilibili-grid"
-              >
-                <article
-                  v-for="(item, i) in ch.items"
-                  :key="i"
-                  class="bilibili-card"
-                >
-                  <a
-                    :href="item.link"
-                    class="bilibili-link"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    <div class="bilibili-thumb" v-if="item.thumb">
-                      <img
-                        :src="item.thumb"
-                        :alt="item.title"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div class="bilibili-thumb placeholder" v-else>
-                      <i class="fas fa-play-circle"></i>
-                    </div>
-                    <div class="bilibili-meta">
-                      <div class="bilibili-title">
-                        {{ item.title }}
-                      </div>
-                      <div class="bilibili-sub">
-                        <span v-if="item._sourceName" class="meta-tag">
-                          {{ item._sourceName }}
-                        </span>
-                        <span v-if="item.date" class="meta-date">
-                          · {{ item.date.slice(0, 10) }}
-                        </span>
-                      </div>
-                    </div>
-                  </a>
-                </article>
-              </div>
-
-              <!-- 默认列表样式：资讯 / 微信等 -->
               <ul
-                v-else-if="ch.items && ch.items.length"
-                class="subscription-list"
+                v-else-if="feed.items && feed.items.length"
+                class="rss-article-list"
               >
                 <li
-                  v-for="(item, i) in ch.items"
+                  v-for="(item, i) in feed.items"
                   :key="i"
-                  class="subscription-list-item"
+                  class="rss-article-item"
                 >
                   <a
                     :href="item.link"
-                    class="subscription-link"
+                    class="rss-article-link"
                     target="_blank"
                     rel="noopener"
                   >
-                    <span class="subscription-link-main">
-                      <span class="subscription-link-title">{{ item.title }}</span>
-                      <span class="subscription-link-meta">
-                        <span v-if="item._sourceName" class="meta-tag">
-                          {{ item._sourceName }}
-                        </span>
-                        <span v-if="item.author" class="meta-author">
-                          · {{ item.author }}
-                        </span>
-                        <span v-if="item.date" class="meta-date">
-                          · {{ item.date.slice(0, 10) }}
-                        </span>
+                    <span class="rss-article-inner">
+                      <span class="rss-article-title">{{ item.title }}</span>
+                      <span class="rss-article-meta">
+                        <span v-if="item.source" class="rss-meta-tag">{{ item.source }}</span>
+                        <span v-if="item.author" class="rss-meta-author">· {{ item.author }}</span>
+                        <span v-if="item.date" class="rss-meta-date">· {{ item.date.slice(0, 10) }}</span>
                       </span>
                     </span>
-                    <i class="fas fa-external-link-alt"></i>
+                    <i class="fas fa-external-link-alt rss-article-icon"></i>
                   </a>
                 </li>
               </ul>
-
-              <div v-else class="subscription-empty">
+              <div v-else class="rss-state rss-state--empty">
                 <i class="fas fa-info-circle"></i>
-                暂无可用数据，可在前端修改订阅源列表或接入后端接口。
+                该源暂无文章
               </div>
-            </template>
+            </div>
           </div>
         </section>
 
-        <!-- 自定义 RSS 订阅区 -->
-        <section class="subscription-card subscription-card--custom">
-          <header class="subscription-card-header">
-            <div class="subscription-card-title">
-              <i class="fas fa-plus-circle"></i>
-              <span>自定义 RSS 源</span>
-            </div>
-            <p class="subscription-card-desc">
-              临时订阅任意 RSS 地址，开发/调试阶段非常方便。正式环境推荐写死在配置或通过后端管理。
-            </p>
+        <!-- 添加自定义源 -->
+        <section class="rss-block rss-block--add">
+          <header class="rss-block-head">
+            <h3 class="rss-block-title"><i class="fas fa-plus-circle"></i> 添加 RSS 源</h3>
+            <p class="rss-block-desc">输入 RSS 地址与可选名称，添加后在下方展示。</p>
           </header>
-          <div class="subscription-card-body">
-            <div class="subscription-custom-form">
+          <div class="rss-block-body">
+            <div class="rss-add-form">
               <input
-                v-model="customUrl"
+                v-model="newSourceUrl"
                 type="url"
-                class="subscription-input"
-                placeholder="输入 RSS Feed 地址，如 https://example.com/feed.xml"
+                class="rss-add-input"
+                placeholder="RSS 地址"
               />
-              <button
-                type="button"
-                class="subscription-btn"
-                @click="onAddCustomRss"
-              >
-                拉取
+              <input
+                v-model="newSourceName"
+                type="text"
+                class="rss-add-input rss-add-input--name"
+                placeholder="显示名称（可选）"
+              />
+              <button type="button" class="rss-add-btn" @click="addCustomSource">
+                添加并拉取
               </button>
             </div>
+          </div>
+        </section>
 
-            <div v-if="customFeeds.loading" class="subscription-empty">
-              <i class="fas fa-circle-notch fa-spin"></i>
-              正在拉取自定义 RSS…
+        <!-- 自定义源卡片 -->
+        <section
+          v-for="src in customSources"
+          :key="src.id"
+          class="rss-block rss-block--custom"
+        >
+          <header class="rss-block-head rss-block-head--row">
+            <h3 class="rss-block-title">{{ src.name }}</h3>
+            <div class="rss-block-actions">
+              <button
+                type="button"
+                class="rss-btn rss-btn--sm"
+                :disabled="src.loading"
+                @click="refreshSource(src)"
+              >
+                {{ src.loading ? '加载中…' : '刷新' }}
+              </button>
+              <button
+                type="button"
+                class="rss-btn rss-btn--sm rss-btn--danger"
+                @click="removeCustomSource(src.id)"
+              >
+                移除
+              </button>
             </div>
-            <div v-else-if="customFeeds.error" class="subscription-empty error">
+          </header>
+          <div class="rss-block-body">
+            <div v-if="src.loading" class="rss-state rss-state--loading">
+              <i class="fas fa-circle-notch fa-spin"></i>
+              加载中…
+            </div>
+            <div v-else-if="src.error" class="rss-state rss-state--error">
               <i class="fas fa-exclamation-triangle"></i>
-              {{ customFeeds.error }}
+              {{ src.error }}
             </div>
             <ul
-              v-else-if="customFeeds.items && customFeeds.items.length"
-              class="subscription-list"
+              v-else-if="src.items && src.items.length"
+              class="rss-article-list"
             >
               <li
-                v-for="(item, i) in customFeeds.items"
+                v-for="(item, i) in src.items"
                 :key="i"
-                class="subscription-list-item"
+                class="rss-article-item"
               >
                 <a
                   :href="item.link"
-                  class="subscription-link"
+                  class="rss-article-link"
                   target="_blank"
                   rel="noopener"
                 >
-                  <span class="subscription-link-main">
-                    <span class="subscription-link-title">{{ item.title }}</span>
-                    <span class="subscription-link-meta">
-                      <span v-if="item.source" class="meta-tag">
-                        {{ item.source }}
-                      </span>
-                      <span v-if="item.author" class="meta-author">
-                        · {{ item.author }}
-                      </span>
-                      <span v-if="item.date" class="meta-date">
-                        · {{ item.date.slice(0, 10) }}
-                      </span>
+                  <span class="rss-article-inner">
+                    <span class="rss-article-title">{{ item.title }}</span>
+                    <span class="rss-article-meta">
+                      <span v-if="item.source" class="rss-meta-tag">{{ item.source }}</span>
+                      <span v-if="item.author" class="rss-meta-author">· {{ item.author }}</span>
+                      <span v-if="item.date" class="rss-meta-date">· {{ item.date.slice(0, 10) }}</span>
                     </span>
                   </span>
-                  <i class="fas fa-external-link-alt"></i>
+                  <i class="fas fa-external-link-alt rss-article-icon"></i>
                 </a>
               </li>
             </ul>
-            <div v-else class="subscription-empty">
+            <div v-else class="rss-state rss-state--empty">
               <i class="fas fa-info-circle"></i>
-              还没有拉取任何自定义 RSS，可以尝试填入一个有效的 RSS 地址。
+              该源暂无文章
             </div>
           </div>
         </section>
       </div>
 
-      <!-- 右侧侧栏：Pixiv 每日一图，从主内容中挪出 -->
-      <aside class="subscription-sidebar">
-        <section class="subscription-sidebar-card">
+      <aside class="rss-aside">
+        <section class="rss-aside-card">
           <PixivDaily :daily="pixivDaily" />
         </section>
       </aside>
@@ -485,358 +392,332 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.subscription-page {
+/* 页面容器 */
+.rss-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-.subscription-title {
-  font-size: 1.1rem;
+.rss-page-title {
+  font-size: 1.15rem;
   font-weight: 600;
   color: var(--private-text);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
 }
 
-.subscription-title i {
+.rss-page-title i {
   color: var(--private-accent);
 }
 
-.subscription-subtitle {
+.rss-page-subtitle {
   font-size: 0.8rem;
+  font-weight: 400;
   color: var(--private-muted);
 }
 
-.subscription-layout {
+/* 主布局：左主右栏 */
+.rss-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.6fr);
+  grid-template-columns: minmax(0, 2.5fr) minmax(0, 1.5fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.rss-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  align-items: flex-start;
 }
 
-.subscription-main {
+.rss-aside {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
-.subscription-sidebar {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.subscription-sidebar-card {
+.rss-aside-card {
   position: sticky;
   top: 0;
 }
 
-.subscription-card {
+/* 通用块：分组 / 添加 / 自定义 */
+.rss-block {
   background: var(--private-card);
-  border-radius: var(--private-radius);
   border: 1px solid var(--private-border);
-  padding: 10px 12px;
+  border-radius: 10px;
+  padding: 14px 16px;
 }
 
-.subscription-card-header {
-  margin-bottom: 8px;
+.rss-block-head {
+  margin-bottom: 10px;
 }
 
-.subscription-card-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--private-text);
-}
-
-.subscription-card-title i {
-  color: var(--private-accent);
-}
-
-.subscription-card-desc {
-  margin: 4px 0 0;
-  font-size: 0.8rem;
-  color: var(--private-muted);
-}
-
-.subscription-card-body {
-  margin-top: 4px;
-}
-
-.subscription-extra-row {
-  margin-bottom: 8px;
-}
-
-.subscription-extra-content {
+.rss-block-head--row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  color: var(--private-muted);
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.extra-label {
-  font-weight: 500;
+.rss-block-title {
+  font-size: 0.98rem;
+  font-weight: 600;
   color: var(--private-text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.extra-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.extra-tag {
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--private-accent-soft);
+.rss-block-title i {
   color: var(--private-accent);
 }
 
-.extra-meta {
-  white-space: nowrap;
-}
-
-.subscription-hint {
-  margin: 4px 0 0;
-  font-size: 0.75rem;
+.rss-block-desc {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
   color: var(--private-muted);
+  line-height: 1.4;
 }
 
-.subscription-empty {
+.rss-block-body {
+  margin-top: 2px;
+}
+
+.rss-block-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 分组内每个 feed 的盒子 */
+.rss-block--group .rss-block-body {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.rss-feed {
+  padding: 10px 0;
+  border-top: 1px solid var(--private-border);
+}
+
+.rss-feed:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* 状态：加载中 / 失败 / 空 */
+.rss-state {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 16px 8px;
-  font-size: 0.8rem;
+  gap: 8px;
+  padding: 20px 12px;
+  font-size: 0.85rem;
   color: var(--private-muted);
   text-align: center;
 }
 
-.subscription-empty i {
-  font-size: 1.2rem;
-  opacity: 0.8;
+.rss-state i {
+  font-size: 1.1rem;
+  opacity: 0.9;
 }
 
-.subscription-empty.error {
-  color: #f97373;
+.rss-state--loading {
+  color: var(--private-muted);
 }
 
-.subscription-list {
+.rss-state--error {
+  color: #e57373;
+  background: rgba(229, 115, 115, 0.08);
+  border-radius: 8px;
+}
+
+.rss-state--empty {
+  color: var(--private-muted);
+}
+
+/* 文章列表 */
+.rss-article-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 320px;
-  overflow: auto;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
 }
 
-.subscription-list-item {
-  border-radius: var(--private-radius-sm);
+.rss-article-item {
+  border-radius: 6px;
   overflow: hidden;
 }
 
-.subscription-link {
+.rss-article-link {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 10px;
+  padding: 10px 12px;
   color: var(--private-text);
   text-decoration: none;
-  font-size: 0.8rem;
-  transition: background 0.15s ease, transform 0.05s ease;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  transition: background 0.2s ease;
 }
 
-.subscription-link:hover {
+.rss-article-link:hover {
   background: var(--private-accent-soft);
-  transform: translateY(-0.5px);
 }
 
-.subscription-link-main {
+.rss-article-inner {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
-.subscription-link-title {
+.rss-article-title {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 500;
 }
 
-.subscription-link-meta {
+.rss-article-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  font-size: 0.7rem;
+  gap: 6px;
+  font-size: 0.75rem;
   color: var(--private-muted);
+  line-height: 1.4;
 }
 
-.meta-tag {
-  padding: 1px 4px;
-  border-radius: 999px;
+.rss-meta-tag {
+  padding: 2px 6px;
+  border-radius: 4px;
   background: var(--private-accent-soft);
   color: var(--private-accent);
 }
 
-.meta-author,
-.meta-date {
+.rss-meta-author,
+.rss-meta-date {
   white-space: nowrap;
 }
 
-.subscription-link i.fas {
-  font-size: 0.7rem;
+.rss-article-icon {
+  font-size: 0.75rem;
   color: var(--private-muted);
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.subscription-custom-form {
+/* 添加源表单 */
+.rss-add-form {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
-.subscription-input {
+.rss-add-input {
   flex: 1;
-  min-width: 0;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 999px;
+  min-width: 120px;
+  height: 36px;
+  padding: 0 14px;
   border: 1px solid var(--private-border);
-  font-size: 0.8rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
   outline: none;
+  background: var(--private-surface);
+  color: var(--private-text);
 }
 
-.subscription-input.slim {
-  height: 26px;
-  font-size: 0.78rem;
-}
-
-.subscription-input:focus {
+.rss-add-input:focus {
   border-color: var(--private-accent);
 }
 
-.subscription-btn {
-  padding: 0 12px;
-  min-width: 64px;
-  border-radius: 999px;
+.rss-add-input--name {
+  flex: 0 1 180px;
+}
+
+.rss-add-btn {
+  height: 36px;
+  padding: 0 18px;
   border: none;
+  border-radius: 8px;
   background: var(--private-accent);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: opacity 0.2s;
 }
 
-.subscription-btn:hover {
-  opacity: 0.95;
+.rss-add-btn:hover {
+  opacity: 0.9;
 }
 
-.subscription-btn.subtle {
+/* 自定义块内按钮 */
+.rss-btn {
+  padding: 0 12px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--private-border);
   background: var(--private-surface);
   color: var(--private-text);
-  border: 1px solid var(--private-border);
-}
-
-.subscription-btn.subtle:hover {
-  background: var(--private-accent-soft);
-}
-
-/* B 站小窗卡片预览 */
-.bilibili-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-  max-height: 320px;
-  overflow: auto;
-}
-
-.bilibili-card {
-  border-radius: var(--private-radius-sm);
-  overflow: hidden;
-  background: var(--private-surface);
-  border: 1px solid var(--private-border);
-}
-
-.bilibili-link {
-  display: flex;
-  flex-direction: column;
-  text-decoration: none;
-  color: var(--private-text);
-}
-
-.bilibili-thumb {
-  position: relative;
-  width: 100%;
-  padding-top: 56.25%;
-  background: #000;
-}
-
-.bilibili-thumb img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.bilibili-thumb.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.bilibili-thumb.placeholder i {
-  font-size: 1.6rem;
-}
-
-.bilibili-meta {
-  padding: 6px 8px;
   font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
 }
 
-.bilibili-title {
-  max-height: 2.6em;
-  overflow: hidden;
+.rss-btn:hover:not(:disabled) {
+  background: var(--private-accent-soft);
+  border-color: var(--private-accent);
 }
 
-.bilibili-sub {
-  margin-top: 4px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  font-size: 0.7rem;
-  color: var(--private-muted);
+.rss-btn--sm {
+  padding: 0 10px;
+  height: 26px;
+  font-size: 0.75rem;
+}
+
+.rss-btn--danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.rss-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {
-  .subscription-layout {
-    grid-template-columns: minmax(0, 1fr);
+  .rss-layout {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
-  .subscription-card {
-    padding: 8px;
-  }
-
-  .subscription-title {
+  .rss-page-title {
     flex-direction: column;
     align-items: flex-start;
-    gap: 2px;
+    gap: 4px;
+  }
+
+  .rss-block {
+    padding: 12px;
+  }
+
+  .rss-article-link {
+    padding: 8px 10px;
   }
 }
 </style>

@@ -116,7 +116,6 @@ onUnmounted(() => {
 <style scoped>
 .side-music-player {
   width: 100%;
-  min-height: 160px;
 }
 
 .side-music-placeholder {
@@ -125,7 +124,7 @@ onUnmounted(() => {
   font-size: 0.8rem;
   color: var(--private-muted, #666);
   background: rgba(0, 0, 0, 0.03);
-  border-radius: var(--private-radius, 8px);
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -137,25 +136,5 @@ onUnmounted(() => {
 
 .side-music-container {
   width: 100%;
-}
-
-.side-music-container :deep(.aplayer) {
-  margin: 0;
-  border-radius: var(--private-radius, 8px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-.side-music-container :deep(.aplayer-list) {
-  max-height: 320px;
-  overflow-y: auto;
-}
-.side-music-container :deep(.aplayer-list ol) {
-  padding-left: 0;
-}
-.side-music-container :deep(.aplayer-list li) {
-  cursor: pointer;
-  border-radius: 4px;
-}
-.side-music-container :deep(.aplayer-list li:hover) {
-  background: rgba(0, 0, 0, 0.06);
 }
 </style>
