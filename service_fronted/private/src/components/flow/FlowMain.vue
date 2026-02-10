@@ -15,7 +15,7 @@ const emit = defineEmits(['change-tab', 'banner-cta'])
 <template>
   <div class="flow-main">
     <div class="flow-welcome">
-      <p class="flow-welcome-text"><b>玉米加农炮</b></p>
+      <p class="flow-welcome-text"><b>Cob Cannon</b></p>
     </div>
     <FlowBanner
       v-if="bannerSlides.length"

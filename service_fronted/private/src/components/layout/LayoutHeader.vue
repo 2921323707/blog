@@ -1,5 +1,18 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+// 用户头像：优先直接 URL，其次 QQ 号自动取 QQ 头像
+const qqAvatar = import.meta.env.VITE_QQ_AVATAR || ''
+const userAvatarUrl = import.meta.env.VITE_USER_AVATAR || ''
+const userAvatar = computed(() => {
+  if (userAvatarUrl) return userAvatarUrl
+  if (qqAvatar) return `https://q1.qlogo.cn/g?b=qq&nk=${qqAvatar}&s=100`
+  return ''
+})
+const avatarLoadFailed = ref(false)
+function onAvatarError() {
+  avatarLoadFailed.value = true
+}
 
 defineProps({
   activeTab: { type: String, default: 'flow' },
@@ -77,7 +90,19 @@ onUnmounted(() => {
       />
     </div>
     <div class="wiki-nav-right">
-      <span class="wiki-user-avatar" aria-hidden="true"></span>
+      <span
+        class="wiki-user-avatar"
+        :class="{ 'has-img': userAvatar && !avatarLoadFailed }"
+        aria-hidden="true"
+      >
+        <img
+          v-if="userAvatar && !avatarLoadFailed"
+          :src="userAvatar"
+          alt="用户头像"
+          referrerpolicy="no-referrer"
+          @error="onAvatarError"
+        />
+      </span>
       <button type="button" class="wiki-btn-create" @click="setTab('waifu')">
         <i class="fas fa-feather"></i> 创建
       </button>
@@ -111,17 +136,25 @@ onUnmounted(() => {
   min-width: 0;
 }
 .wiki-logo {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--private-accent);
+  font-family: 'ZCOOL KuaiLe', 'Ma Shan Zheng', cursive;
+  font-size: 1.5rem;
+  font-weight: 400;
   text-decoration: none;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
   white-space: nowrap;
-  transition: color 0.2s, opacity 0.2s;
+  /* 萌萌艺术字：渐变文字 */
+  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 35%, #a855f7 70%, #ec4899 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 1px 2px rgba(34, 197, 94, 0.25));
+  transition: filter 0.25s ease, opacity 0.25s ease;
 }
 .wiki-logo:hover {
-  color: #059669;
-  opacity: 0.9;
+  filter: drop-shadow(0 2px 6px rgba(168, 85, 247, 0.35)) brightness(1.05);
+  opacity: 1;
 }
 .wiki-nav-links {
   display: flex;
@@ -233,6 +266,18 @@ onUnmounted(() => {
   border: 2px dashed var(--private-accent);
   background: var(--private-accent-soft);
   flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wiki-user-avatar.has-img {
+  border-style: solid;
+}
+.wiki-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .wiki-btn-create {
   display: inline-flex;

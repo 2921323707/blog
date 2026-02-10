@@ -11,6 +11,14 @@
   --private-radius: 12px;
   --private-radius-sm: 8px;
   --private-header-h: 56px;
+  /* 动态背景用色 */
+  --private-bg-orb-1: rgba(34, 197, 94, 0.08);
+  --private-bg-orb-2: rgba(168, 85, 247, 0.06);
+  --private-bg-orb-3: rgba(59, 130, 246, 0.07);
+  --private-bg-orb-4: rgba(236, 72, 153, 0.06);
+  --private-bg-gradient-from: #f0f9f4;
+  --private-bg-gradient-via: #f5f5f7;
+  --private-bg-gradient-to: #f5f3ff;
 }
 
 * {
@@ -35,8 +43,105 @@ body.theme-light {
 }
 
 #app {
+  position: relative;
+  z-index: 0;
   min-height: calc(100vh + 1px);
   padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* ---------- 全页动态背景层 ---------- */
+.private-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 底层：缓慢变色的渐变 */
+.private-bg-base {
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(
+    135deg,
+    var(--private-bg-gradient-from) 0%,
+    var(--private-bg-gradient-via) 40%,
+    var(--private-bg-gradient-to) 100%
+  );
+  background-size: 200% 200%;
+  animation: private-bg-gradient-shift 18s ease-in-out infinite;
+}
+
+/* 光晕球：大、模糊、缓慢位移 + 轻微透明度变化 */
+.private-bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.9;
+  will-change: transform, opacity;
+}
+
+.private-bg-orb-1 {
+  width: min(80vmax, 520px);
+  height: min(80vmax, 520px);
+  background: radial-gradient(circle, var(--private-bg-orb-1) 0%, transparent 70%);
+  top: -15%;
+  left: -10%;
+  animation: private-bg-float-1 22s ease-in-out infinite;
+}
+
+.private-bg-orb-2 {
+  width: min(70vmax, 440px);
+  height: min(70vmax, 440px);
+  background: radial-gradient(circle, var(--private-bg-orb-2) 0%, transparent 70%);
+  top: 30%;
+  right: -15%;
+  animation: private-bg-float-2 26s ease-in-out infinite;
+}
+
+.private-bg-orb-3 {
+  width: min(60vmax, 380px);
+  height: min(60vmax, 380px);
+  background: radial-gradient(circle, var(--private-bg-orb-3) 0%, transparent 70%);
+  bottom: -10%;
+  left: 20%;
+  animation: private-bg-float-3 24s ease-in-out infinite;
+}
+
+.private-bg-orb-4 {
+  width: min(50vmax, 320px);
+  height: min(50vmax, 320px);
+  background: radial-gradient(circle, var(--private-bg-orb-4) 0%, transparent 70%);
+  bottom: 20%;
+  right: 10%;
+  animation: private-bg-float-4 20s ease-in-out infinite;
+}
+
+@keyframes private-bg-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes private-bg-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+  33% { transform: translate(4%, 6%) scale(1.05); opacity: 0.85; }
+  66% { transform: translate(-3%, 2%) scale(0.98); opacity: 0.92; }
+}
+
+@keyframes private-bg-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+  33% { transform: translate(-5%, -4%) scale(1.02); opacity: 0.88; }
+  66% { transform: translate(3%, 5%) scale(0.97); opacity: 0.9; }
+}
+
+@keyframes private-bg-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+  50% { transform: translate(6%, -3%) scale(1.03); opacity: 0.86; }
+}
+
+@keyframes private-bg-float-4 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+  50% { transform: translate(-4%, 4%) scale(1.04); opacity: 0.88; }
 }
 
 /* 各 section 默认隐藏，active 时显示 */

@@ -12,7 +12,7 @@ const emit = defineEmits(['add-waifu', 'random'])
     <p class="flow-sidebar-desc">万物皆可萌的小站</p>
     <p class="flow-stats-inline">{{ waifuCount }} 位老婆 · {{ imageCount }} 张图</p>
     <div class="flow-sidebar-btns">
-      <button type="button" class="flow-btn-primary" @click="emit('add-waifu')"><i class="fas fa-plus"></i> 添加老婆</button>
+      <button type="button" class="flow-btn-primary" @click="emit('add-waifu')"><i class="fas fa-door-open"></i> Open the door</button>
       <button type="button" class="flow-btn-primary" @click="emit('random')"><i class="fas fa-random"></i> 随机看看</button>
     </div>
   </div>
@@ -67,5 +67,17 @@ const emit = defineEmits(['add-waifu', 'random'])
   border: 1px solid var(--private-border);
   border-radius: var(--private-radius);
   padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.wiki-block .flow-sidebar-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--private-border);
+  margin-bottom: 10px;
+}
+.wiki-block .flow-btn-primary:first-of-type {
+  background: linear-gradient(135deg, var(--private-accent) 0%, color-mix(in srgb, var(--private-accent) 85%, #000) 100%);
 }
 </style>

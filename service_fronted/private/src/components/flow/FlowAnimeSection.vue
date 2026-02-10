@@ -79,7 +79,7 @@ function scroll(direction) {
       <div class="flow-anime-head-inner">
         <h2 class="flow-anime-title">
           <i class="fas fa-calendar-alt" aria-hidden="true"></i>
-          日本周新番
+          最新ニュース
         </h2>
         <a
           href="https://myanimelist.net/anime/season"

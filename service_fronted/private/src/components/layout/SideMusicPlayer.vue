@@ -67,7 +67,7 @@ function renderMeting() {
   metingEl.setAttribute('id', props.playlistId)
   metingEl.setAttribute('mini', props.mini ? 'true' : 'false')
   metingEl.setAttribute('fixed', props.fixed ? 'true' : 'false')
-  metingEl.setAttribute('list-folded', 'false')  /* 默认展开歌单，方便点击切换 */
+  metingEl.setAttribute('list-folded', 'false')
   metingEl.setAttribute('autoplay', 'false')
   if (props.api) metingEl.setAttribute('api', props.api)
   container.value.appendChild(metingEl)
@@ -116,7 +116,7 @@ onUnmounted(() => {
 <style scoped>
 .side-music-player {
   width: 100%;
-  min-height: 120px;
+  min-height: 160px;
 }
 
 .side-music-placeholder {
@@ -139,14 +139,13 @@ onUnmounted(() => {
   width: 100%;
 }
 
-/* 覆盖 APlayer 在侧栏内的样式，歌单默认展开可点击切换 */
 .side-music-container :deep(.aplayer) {
   margin: 0;
   border-radius: var(--private-radius, 8px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 .side-music-container :deep(.aplayer-list) {
-  max-height: 260px;
+  max-height: 320px;
   overflow-y: auto;
 }
 .side-music-container :deep(.aplayer-list ol) {

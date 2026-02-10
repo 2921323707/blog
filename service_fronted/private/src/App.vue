@@ -101,6 +101,15 @@ function onFlowNavigate(to) {
 </script>
 
 <template>
+  <!-- 全页动态背景：渐变 + 缓慢移动的模糊光晕 -->
+  <div class="private-bg-layer" aria-hidden="true">
+    <div class="private-bg-base"></div>
+    <div class="private-bg-orb private-bg-orb-1"></div>
+    <div class="private-bg-orb private-bg-orb-2"></div>
+    <div class="private-bg-orb private-bg-orb-3"></div>
+    <div class="private-bg-orb private-bg-orb-4"></div>
+  </div>
+
   <LayoutHeader :active-tab="activeTab" @change-tab="setTab" />
 
   <LayoutMain>
